@@ -4,6 +4,7 @@ let currentOffset = 0;
 let currentTotal = 0;
 const PAGE_SIZE = 50;
 let searchTimeout = null;
+let loadGeneration = 0; // guards against race conditions between overlapping loadJobs calls
 const HOME_ENCODED = "Laan+van+Decima+1B,+Haarlem";
 
 // Active filters state
@@ -194,6 +195,8 @@ function clearAllFilters() {
 async function loadJobs(append = false) {
     if (!append) currentOffset = 0;
 
+    const thisGen = ++loadGeneration;
+
     const search = document.getElementById("search-input").value.trim();
     const onlyNew = document.getElementById("toggle-new").checked;
     const sort = document.getElementById("sort-select").value;
@@ -208,6 +211,10 @@ async function loadJobs(append = false) {
     if (activeFilters.source) params.set("source", activeFilters.source);
 
     const data = await api(`/api/jobs?${params}`);
+
+    // If a newer loadJobs call was started while we were waiting, discard this result
+    if (thisGen !== loadGeneration) return;
+
     currentTotal = data.total;
 
     const container = document.getElementById("jobs-container");
