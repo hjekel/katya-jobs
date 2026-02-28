@@ -47,7 +47,7 @@
                     <span class="panel-toggle">&#9660;</span>
                 </div>
                 <div class="panel-body">
-                    <div class="chip-list" id="chips-category"></div>
+                    <ul class="filter-list" id="list-category"></ul>
                 </div>
             </div>
 
@@ -57,7 +57,7 @@
                     <span class="panel-toggle">&#9660;</span>
                 </div>
                 <div class="panel-body">
-                    <div class="chip-list" id="chips-location"></div>
+                    <ul class="filter-list" id="list-location"></ul>
                 </div>
             </div>
 
@@ -67,10 +67,10 @@
                     <span class="panel-toggle">&#9660;</span>
                 </div>
                 <div class="panel-body">
-                    <div class="chip-list" id="chips-company"></div>
-                    <button class="btn-show-all" id="btn-show-all-companies" style="display:none"
-                            onclick="showAllCompanies()">Show all</button>
+                    <ul class="filter-list" id="list-company"></ul>
                 </div>
+                <button class="btn-show-all" id="btn-show-all-companies" style="display:none"
+                        onclick="showAllCompanies()">Show all</button>
             </div>
 
             <div class="filter-panel" id="panel-source">
@@ -79,8 +79,9 @@
                     <span class="panel-toggle">&#9660;</span>
                 </div>
                 <div class="panel-body">
-                    <div class="chip-list" id="chips-posting-type"></div>
-                    <div class="chip-list" id="chips-source" style="margin-top:6px"></div>
+                    <ul class="filter-list" id="list-posting-type"></ul>
+                    <div class="filter-list-divider"></div>
+                    <ul class="filter-list" id="list-source"></ul>
                 </div>
             </div>
         </div>

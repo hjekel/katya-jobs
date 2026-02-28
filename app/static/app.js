@@ -36,60 +36,65 @@ async function api(path, opts = {}) {
 
 async function loadFilters() {
     filterData = await api("/api/filters");
-    renderFilterChips();
+    renderFilterLists();
 }
 
-function renderFilterChips() {
+function renderFilterLists() {
     if (!filterData) return;
 
-    // Category chips
-    const catContainer = document.getElementById("chips-category");
-    catContainer.innerHTML = "";
-    for (const [cat, count] of Object.entries(filterData.categories || {})) {
-        catContainer.appendChild(createChip(cat, count, "category", cat));
-    }
+    // Category list
+    renderList("list-category", filterData.categories || {}, "category");
 
-    // Location chips
-    const locContainer = document.getElementById("chips-location");
-    locContainer.innerHTML = "";
-    for (const [city, count] of Object.entries(filterData.cities || {})) {
-        if (city) locContainer.appendChild(createChip(city, count, "city", city));
-    }
+    // Location list
+    const cities = Object.entries(filterData.cities || {}).filter(([c]) => c);
+    renderListFromEntries("list-location", cities, "city");
 
-    // Company chips
-    renderCompanyChips();
+    // Company list
+    renderCompanyList();
 
-    // Posting type chips
-    const ptContainer = document.getElementById("chips-posting-type");
+    // Posting type list (with dot indicators)
+    const typeLabels = { direct: "Direct employer", recruiter: "Via recruiter", job_board: "Job board" };
+    const ptContainer = document.getElementById("list-posting-type");
     ptContainer.innerHTML = "";
-    const typeLabels = { direct: "Direct", recruiter: "Via recruiter", job_board: "Job board" };
     for (const [ptype, count] of Object.entries(filterData.posting_types || {})) {
-        const chip = createChip(typeLabels[ptype] || ptype, count, "posting_type", ptype);
-        chip.classList.add(`type-${ptype}`);
-        ptContainer.appendChild(chip);
+        ptContainer.appendChild(createFilterRow(
+            typeLabels[ptype] || ptype, count, "posting_type", ptype, `dot-${ptype}`
+        ));
     }
 
-    // Source chips
-    const srcContainer = document.getElementById("chips-source");
-    srcContainer.innerHTML = "";
-    for (const [src, count] of Object.entries(filterData.sources || {})) {
-        srcContainer.appendChild(createChip(src, count, "source", src));
+    // Source list
+    renderList("list-source", filterData.sources || {}, "source");
+}
+
+function renderList(containerId, dataObj, filterKey) {
+    const container = document.getElementById(containerId);
+    container.innerHTML = "";
+    for (const [label, count] of Object.entries(dataObj)) {
+        container.appendChild(createFilterRow(label, count, filterKey, label));
     }
 }
 
-function renderCompanyChips() {
-    const container = document.getElementById("chips-company");
+function renderListFromEntries(containerId, entries, filterKey) {
+    const container = document.getElementById(containerId);
+    container.innerHTML = "";
+    for (const [label, count] of entries) {
+        container.appendChild(createFilterRow(label, count, filterKey, label));
+    }
+}
+
+function renderCompanyList() {
+    const container = document.getElementById("list-company");
     container.innerHTML = "";
     const companies = Object.entries(filterData.companies || {});
     const showBtn = document.getElementById("btn-show-all-companies");
 
     const limit = companiesExpanded ? companies.length : MAX_COMPANIES_VISIBLE;
     companies.slice(0, limit).forEach(([company, count]) => {
-        container.appendChild(createChip(company, count, "company", company));
+        container.appendChild(createFilterRow(company, count, "company", company));
     });
 
     if (companies.length > MAX_COMPANIES_VISIBLE) {
-        showBtn.style.display = "inline";
+        showBtn.style.display = "block";
         showBtn.textContent = companiesExpanded
             ? "Show less"
             : `Show all (${companies.length})`;
@@ -100,26 +105,29 @@ function renderCompanyChips() {
 
 function showAllCompanies() {
     companiesExpanded = !companiesExpanded;
-    renderCompanyChips();
+    renderCompanyList();
 }
 
-function createChip(label, count, filterKey, filterValue) {
-    const chip = document.createElement("span");
-    chip.className = "chip";
-    if (activeFilters[filterKey] === filterValue) chip.classList.add("active");
+function createFilterRow(label, count, filterKey, filterValue, dotClass) {
+    const li = document.createElement("li");
+    li.className = "filter-row";
+    if (activeFilters[filterKey] === filterValue) li.classList.add("active");
 
-    chip.innerHTML = `${escHtml(label)} <span class="chip-count">${count}</span>`;
-    chip.addEventListener("click", () => {
+    let dotHtml = "";
+    if (dotClass) dotHtml = `<span class="filter-row-dot ${dotClass}"></span>`;
+
+    li.innerHTML = `${dotHtml}<span class="filter-row-label">${escHtml(label)}</span><span class="filter-row-count">${count}</span>`;
+    li.addEventListener("click", () => {
         if (activeFilters[filterKey] === filterValue) {
             activeFilters[filterKey] = null;
         } else {
             activeFilters[filterKey] = filterValue;
         }
-        renderFilterChips();
+        renderFilterLists();
         renderActiveFilters();
         loadJobs();
     });
-    return chip;
+    return li;
 }
 
 function togglePanel(headerEl) {
@@ -161,7 +169,7 @@ function renderActiveFilters() {
             chip.querySelector(".active-chip-remove").addEventListener("click", (e) => {
                 e.stopPropagation();
                 activeFilters[key] = null;
-                renderFilterChips();
+                renderFilterLists();
                 renderActiveFilters();
                 loadJobs();
             });
@@ -176,7 +184,7 @@ function clearAllFilters() {
     for (const key of Object.keys(activeFilters)) {
         activeFilters[key] = null;
     }
-    renderFilterChips();
+    renderFilterLists();
     renderActiveFilters();
     loadJobs();
 }
@@ -292,7 +300,7 @@ function createJobCard(job) {
     // Category badge
     let categoryBadge = "";
     if (job.category && job.category !== "Other") {
-        categoryBadge = `<span class="chip" style="cursor:default;font-size:0.7rem;padding:2px 6px">${escHtml(job.category)}</span>`;
+        categoryBadge = `<span class="badge-category">${escHtml(job.category)}</span>`;
     }
 
     card.innerHTML = `

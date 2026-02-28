@@ -183,7 +183,7 @@ main { max-width: 1200px; margin: 0 auto; padding: 16px; }
 }
 
 .panel-header h3 {
-    font-size: 0.85rem;
+    font-size: 0.82rem;
     font-weight: 700;
     color: var(--primary);
     text-transform: uppercase;
@@ -199,80 +199,113 @@ main { max-width: 1200px; margin: 0 auto; padding: 16px; }
 .panel-header.collapsed .panel-toggle { transform: rotate(-90deg); }
 
 .panel-body {
-    padding: 10px 14px;
-    max-height: 200px;
+    padding: 0;
+    max-height: 220px;
     overflow-y: auto;
-    transition: max-height 0.3s ease, padding 0.3s ease;
+    transition: max-height 0.3s ease;
 }
 
 .panel-body.collapsed {
     max-height: 0;
-    padding: 0 14px;
     overflow: hidden;
 }
 
-.chip-list {
+/* Notion-style scrollbar */
+.panel-body::-webkit-scrollbar { width: 4px; }
+.panel-body::-webkit-scrollbar-track { background: transparent; }
+.panel-body::-webkit-scrollbar-thumb { background: var(--border); border-radius: 4px; }
+.panel-body:hover::-webkit-scrollbar-thumb { background: #adb5bd; }
+
+/* ---- Filter list rows (Notion-style) ---- */
+.filter-list {
+    list-style: none;
+    margin: 0;
+    padding: 4px 0;
+}
+
+.filter-row {
     display: flex;
-    flex-wrap: wrap;
-    gap: 6px;
-}
-
-.chip {
-    display: inline-flex;
     align-items: center;
-    gap: 4px;
-    padding: 4px 10px;
-    border-radius: 16px;
-    font-size: 0.78rem;
-    font-weight: 500;
+    justify-content: space-between;
+    padding: 5px 14px;
     cursor: pointer;
-    border: 1px solid var(--border);
-    background: var(--card-bg);
+    font-size: 0.82rem;
     color: var(--text);
-    transition: all 0.2s;
-    white-space: nowrap;
+    transition: background 0.12s;
+    border-left: 3px solid transparent;
+    min-height: 32px;
 }
 
-.chip:hover { border-color: var(--primary); color: var(--primary); }
-
-.chip.active {
-    background: var(--primary);
-    color: #fff;
-    border-color: var(--primary);
+.filter-row:hover {
+    background: #f0f4ff;
 }
 
-.chip-count {
-    font-size: 0.7rem;
-    background: rgba(0,0,0,0.08);
-    padding: 1px 5px;
-    border-radius: 8px;
+.filter-row.active {
+    background: #e8eeff;
+    border-left-color: var(--primary);
     font-weight: 600;
 }
 
-.chip.active .chip-count {
-    background: rgba(255,255,255,0.25);
+.filter-row-label {
+    flex: 1;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    padding-right: 8px;
 }
 
-/* Source type badges */
-.chip.type-direct { border-color: var(--green); }
-.chip.type-direct.active { background: var(--green); border-color: var(--green); }
-.chip.type-recruiter { border-color: var(--orange); }
-.chip.type-recruiter.active { background: var(--orange); border-color: var(--orange); }
-.chip.type-job_board { border-color: var(--grey); }
-.chip.type-job_board.active { background: var(--grey); border-color: var(--grey); }
+.filter-row-count {
+    flex-shrink: 0;
+    font-size: 0.75rem;
+    color: var(--text-secondary);
+    font-weight: 500;
+    font-variant-numeric: tabular-nums;
+    min-width: 24px;
+    text-align: right;
+}
+
+.filter-row.active .filter-row-count {
+    color: var(--primary);
+    font-weight: 700;
+}
+
+/* Type indicator dots */
+.filter-row-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    flex-shrink: 0;
+    margin-right: 8px;
+}
+
+.filter-row-dot.dot-direct { background: var(--green); }
+.filter-row-dot.dot-recruiter { background: var(--orange); }
+.filter-row-dot.dot-job_board { background: var(--grey); }
+
+/* Divider between posting types and sources in Source panel */
+.filter-list-divider {
+    height: 1px;
+    background: var(--border);
+    margin: 4px 14px;
+}
 
 .btn-show-all {
+    display: block;
+    width: 100%;
     background: none;
     border: none;
+    border-top: 1px solid var(--border);
     color: var(--primary);
     font-size: 0.78rem;
     font-weight: 600;
     cursor: pointer;
-    padding: 4px 0;
-    margin-top: 6px;
+    padding: 7px 14px;
+    text-align: left;
+    transition: background 0.12s;
 }
 
-.btn-show-all:hover { text-decoration: underline; }
+.btn-show-all:hover { background: #f0f4ff; }
 
 /* ===== Active Filters Bar ===== */
 .active-filters {
@@ -521,6 +554,17 @@ main { max-width: 1200px; margin: 0 auto; padding: 16px; }
     border-radius: 10px;
     background: var(--grey-light);
     color: var(--grey);
+}
+
+.badge-category {
+    display: inline-flex;
+    align-items: center;
+    font-size: 0.72rem;
+    font-weight: 500;
+    padding: 2px 8px;
+    border-radius: 10px;
+    background: #e8eeff;
+    color: var(--primary);
 }
 
 .job-salary {
