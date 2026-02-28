@@ -28,6 +28,14 @@ document.addEventListener("DOMContentLoaded", () => {
     loadJobs();
 });
 
+// Called by theme.js when language changes
+function onLanguageChange() {
+    renderFilterLists();
+    renderActiveFilters();
+    loadJobs();
+    loadStats();
+}
+
 async function api(path, opts = {}) {
     const resp = await fetch(path, opts);
     return resp.json();
@@ -54,12 +62,11 @@ function renderFilterLists() {
     renderCompanyList();
 
     // Posting type list (with dot indicators)
-    const typeLabels = { direct: "Direct employer", recruiter: "Via recruiter", job_board: "Job board" };
     const ptContainer = document.getElementById("list-posting-type");
     ptContainer.innerHTML = "";
     for (const [ptype, count] of Object.entries(filterData.posting_types || {})) {
         ptContainer.appendChild(createFilterRow(
-            typeLabels[ptype] || ptype, count, "posting_type", ptype, `dot-${ptype}`
+            t('type-' + ptype), count, "posting_type", ptype, `dot-${ptype}`
         ));
     }
 
@@ -97,8 +104,8 @@ function renderCompanyList() {
     if (companies.length > MAX_COMPANIES_VISIBLE) {
         showBtn.style.display = "block";
         showBtn.textContent = companiesExpanded
-            ? "Show less"
-            : `Show all (${companies.length})`;
+            ? t('btn-show-less')
+            : t('btn-show-all', { n: companies.length });
     } else {
         showBtn.style.display = "none";
     }
@@ -151,13 +158,17 @@ function renderActiveFilters() {
     chipsContainer.innerHTML = "";
 
     const filterLabels = {
-        category: "Category",
-        city: "Location",
-        company: "Company",
-        posting_type: "Type",
-        source: "Source",
+        category: t('filter-label-category'),
+        city: t('filter-label-location'),
+        company: t('filter-label-company'),
+        posting_type: t('filter-label-type'),
+        source: t('filter-label-source'),
     };
-    const typeLabels = { direct: "Direct", recruiter: "Via recruiter", job_board: "Job board" };
+    const typeLabels = {
+        direct: t('chip-direct'),
+        recruiter: t('chip-recruiter'),
+        job_board: t('chip-job_board'),
+    };
 
     let hasActive = false;
     for (const [key, value] of Object.entries(activeFilters)) {
@@ -226,7 +237,7 @@ async function loadJobs(append = false) {
     if (data.jobs.length === 0 && !append) {
         emptyState.style.display = "block";
         loadMoreContainer.style.display = "none";
-        document.getElementById("results-count").textContent = "No jobs found";
+        document.getElementById("results-count").textContent = t('no-jobs-found');
         return;
     }
 
@@ -235,7 +246,7 @@ async function loadJobs(append = false) {
 
     const shown = currentOffset + data.jobs.length;
     loadMoreContainer.style.display = shown < currentTotal ? "block" : "none";
-    document.getElementById("results-count").textContent = `Showing ${shown} of ${currentTotal} jobs`;
+    document.getElementById("results-count").textContent = t('showing-jobs', { shown: shown, total: currentTotal });
 }
 
 function loadMore() {
@@ -270,7 +281,7 @@ function createJobCard(job) {
             salaryHtml = `<div class="job-salary has-salary">\u20AC${job.salary_min.toLocaleString()} \u2013 \u20AC${job.salary_max.toLocaleString()}/month</div>`;
         }
     } else {
-        salaryHtml = `<div class="job-salary no-salary">Salary not listed</div>`;
+        salaryHtml = `<div class="job-salary no-salary">${escHtml(t('salary-not-listed'))}</div>`;
     }
 
     // Commute display
@@ -279,9 +290,9 @@ function createJobCard(job) {
         const url = mapsUrl(job.location);
         commuteHtml = `
             <div class="job-commute">
-                <span>\uD83D\uDE86 Commute from Haarlem</span>
+                <span>${escHtml(t('commute-from'))}</span>
                 <a href="${escHtml(url)}" target="_blank" rel="noopener"
-                   onclick="event.stopPropagation()">Get directions \u2192</a>
+                   onclick="event.stopPropagation()">${escHtml(t('get-directions'))}</a>
             </div>`;
     }
 
@@ -297,11 +308,11 @@ function createJobCard(job) {
     // Posting type badge
     let typeBadge = "";
     if (job.posting_type === "recruiter") {
-        typeBadge = `<span class="badge-recruiter">Via recruiter</span>`;
+        typeBadge = `<span class="badge-recruiter">${escHtml(t('chip-recruiter'))}</span>`;
     } else if (job.posting_type === "direct") {
-        typeBadge = `<span class="badge-direct">Direct</span>`;
+        typeBadge = `<span class="badge-direct">${escHtml(t('chip-direct'))}</span>`;
     } else if (job.posting_type === "job_board") {
-        typeBadge = `<span class="badge-jobboard">Job board</span>`;
+        typeBadge = `<span class="badge-jobboard">${escHtml(t('chip-job_board'))}</span>`;
     }
 
     // Category badge
@@ -330,18 +341,18 @@ function createJobCard(job) {
         ${job.snippet ? `<p class="job-snippet">${escHtml(job.snippet)}</p>` : ""}
         <div class="job-footer">
             <div class="job-footer-left">
-                <span class="job-source ${sourceClass}">Posted on ${escHtml(job.source)}</span>
+                <span class="job-source ${sourceClass}">${escHtml(t('posted-on', { source: job.source }))}</span>
             </div>
             <div class="job-actions">
                 <button class="btn-save" id="save-${job.id}"
-                        onclick="event.stopPropagation(); saveJob(${job.id})">Save</button>
+                        onclick="event.stopPropagation(); saveJob(${job.id})">${escHtml(t('btn-save'))}</button>
                 <button class="btn-hide"
-                        onclick="event.stopPropagation(); hideJob(${job.id})">Hide</button>
+                        onclick="event.stopPropagation(); hideJob(${job.id})">${escHtml(t('btn-hide'))}</button>
                 <a class="btn-apply" href="${escHtml(job.url)}" target="_blank" rel="noopener"
-                   onclick="event.stopPropagation()">View \u2192</a>
+                   onclick="event.stopPropagation()">${escHtml(t('btn-view'))}</a>
             </div>
         </div>
-        <div class="expand-hint">Click card to see why Katya fits</div>
+        <div class="expand-hint">${escHtml(t('expand-hint'))}</div>
         <div class="job-fit" id="fit-${job.id}"></div>
     `;
 
@@ -368,7 +379,7 @@ async function toggleFit(job) {
         return;
     }
 
-    fitEl.innerHTML = `<p class="job-fit-loading">Analysing fit...</p>`;
+    fitEl.innerHTML = `<p class="job-fit-loading">${escHtml(t('analysing-fit'))}</p>`;
     fitEl.classList.add("open");
 
     try {
@@ -386,7 +397,7 @@ async function toggleFit(job) {
         `;
         fitEl.dataset.loaded = "1";
     } catch (err) {
-        fitEl.innerHTML = `<p class="job-fit-loading">Could not load analysis.</p>`;
+        fitEl.innerHTML = `<p class="job-fit-loading">${escHtml(t('fit-error'))}</p>`;
     }
 }
 
@@ -397,7 +408,7 @@ async function saveJob(jobId) {
     const btn = document.getElementById(`save-${jobId}`);
     if (btn) {
         btn.classList.add("saved");
-        btn.textContent = data.status === "created" ? "Saved!" : "Already saved";
+        btn.textContent = data.status === "created" ? t('btn-saved') : t('btn-already-saved');
     }
 }
 
@@ -418,23 +429,23 @@ async function startScrape() {
     btn.disabled = true;
     btn.classList.add("spinning");
     statusBar.style.display = "flex";
-    statusText.textContent = "Scanning 6 job boards... this may take a minute.";
+    statusText.textContent = t('scanning-text');
 
     try {
         const data = await api("/api/scrape", { method: "POST" });
         if (data.status === "completed") {
             const parts = Object.entries(data.results)
-                .map(([src, count]) => `${src}: ${count} new`)
+                .map(([src, count]) => `${src}: ${t('scrape-new', { count: count })}`)
                 .join(", ");
-            statusText.textContent = `Done! ${parts}`;
+            statusText.textContent = t('scrape-done', { details: parts });
         } else {
-            statusText.textContent = "Scrape is already running.";
+            statusText.textContent = t('scrape-running');
         }
         loadStats();
         loadFilters();
         loadJobs();
     } catch (err) {
-        statusText.textContent = "Error scanning. Try again later.";
+        statusText.textContent = t('scrape-error');
     } finally {
         btn.disabled = false;
         btn.classList.remove("spinning");
@@ -457,10 +468,10 @@ async function hideJob(jobId) {
 
 async function loadStats() {
     const data = await api("/api/stats");
-    document.getElementById("stat-total").textContent = `${data.total} jobs`;
+    document.getElementById("stat-total").textContent = t('jobs-count', { n: data.total });
     const newBadge = document.getElementById("stat-new");
     if (data.new > 0) {
-        newBadge.textContent = `${data.new} new`;
+        newBadge.textContent = t('new-count', { n: data.new });
         newBadge.style.display = "inline";
     } else {
         newBadge.style.display = "none";

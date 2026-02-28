@@ -5,20 +5,29 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Katya's JobFinder</title>
     <link rel="icon" type="image/svg+xml" href="/static/favicon.svg">
-    <link rel="stylesheet" href="/static/style.css?v=2">
+    <link rel="stylesheet" href="/static/style.css?v=3">
 </head>
 <body>
     <header>
         <div class="header-content">
-            <h1><img src="/static/favicon.svg" alt="" class="header-icon">Katya's JobFinder</h1>
+            <h1><img src="/static/favicon.svg" alt="" class="header-icon"><span data-i18n="site-title">Katya's JobFinder</span></h1>
             <nav class="header-nav">
-                <a href="/" class="nav-link active">Jobs</a>
-                <a href="/applications" class="nav-link">My Applications</a>
+                <a href="/" class="nav-link active" data-i18n="nav-jobs">Jobs</a>
+                <a href="/applications" class="nav-link" data-i18n="nav-applications">My Applications</a>
             </nav>
+        </div>
+        <div class="header-controls">
+            <div class="lang-switcher">
+                <button class="lang-btn" data-lang="en">EN</button>
+                <button class="lang-btn" data-lang="ru">RU</button>
+                <button class="lang-btn" data-lang="ua">UA</button>
+            </div>
+            <button class="theme-toggle" id="theme-toggle" title="Toggle dark mode">&#127769;</button>
+            <button class="ukraine-toggle" id="ukraine-toggle" title="Ukraine mode" style="display:none">&#127482;&#127462;</button>
         </div>
         <div class="header-actions">
             <button id="btn-scrape" onclick="startScrape()">
-                <span class="btn-icon">&circlearrowleft;</span> Scan for Jobs
+                <span class="btn-icon">&circlearrowleft;</span> <span data-i18n="btn-scrape">Scan for Jobs</span>
             </button>
             <div id="stats-bar">
                 <span id="stat-total">0 jobs</span>
@@ -36,14 +45,14 @@
 
         <!-- Search bar -->
         <div class="search-bar">
-            <input type="text" id="search-input" placeholder="Search jobs by title, company, or keyword..." oninput="debounceSearch()">
+            <input type="text" id="search-input" data-i18n-placeholder="search-placeholder" placeholder="Search jobs by title, company, or keyword..." oninput="debounceSearch()">
         </div>
 
         <!-- Filter Panels (2x2 on mobile, 4-col on desktop) -->
         <div class="filter-panels">
             <div class="filter-panel" id="panel-category">
                 <div class="panel-header" onclick="togglePanel(this)">
-                    <h3>Category</h3>
+                    <h3 data-i18n="filter-category">Category</h3>
                     <span class="panel-toggle">&#9660;</span>
                 </div>
                 <div class="panel-body">
@@ -53,7 +62,7 @@
 
             <div class="filter-panel" id="panel-location">
                 <div class="panel-header" onclick="togglePanel(this)">
-                    <h3>Location</h3>
+                    <h3 data-i18n="filter-location">Location</h3>
                     <span class="panel-toggle">&#9660;</span>
                 </div>
                 <div class="panel-body">
@@ -63,7 +72,7 @@
 
             <div class="filter-panel" id="panel-company">
                 <div class="panel-header" onclick="togglePanel(this)">
-                    <h3>Company</h3>
+                    <h3 data-i18n="filter-company">Company</h3>
                     <span class="panel-toggle">&#9660;</span>
                 </div>
                 <div class="panel-body">
@@ -75,7 +84,7 @@
 
             <div class="filter-panel" id="panel-source">
                 <div class="panel-header" onclick="togglePanel(this)">
-                    <h3>Source</h3>
+                    <h3 data-i18n="filter-source">Source</h3>
                     <span class="panel-toggle">&#9660;</span>
                 </div>
                 <div class="panel-body">
@@ -89,7 +98,7 @@
         <!-- Active Filters Bar -->
         <div class="active-filters" id="active-filters" style="display:none">
             <div class="active-filters-chips" id="active-filters-chips"></div>
-            <button class="btn-clear-filters" onclick="clearAllFilters()">Clear all</button>
+            <button class="btn-clear-filters" onclick="clearAllFilters()" data-i18n="btn-clear-filters">Clear all</button>
         </div>
 
         <!-- Controls row -->
@@ -97,13 +106,13 @@
             <div class="results-count" id="results-count">Showing 0 jobs</div>
             <div class="controls-right">
                 <label class="toggle-new">
-                    <input type="checkbox" id="toggle-new" onchange="loadJobs()"> Show only new
+                    <input type="checkbox" id="toggle-new" onchange="loadJobs()"> <span data-i18n="toggle-new">Show only new</span>
                 </label>
                 <div class="sort-control">
-                    <label for="sort-select">Sort:</label>
+                    <label for="sort-select" data-i18n="sort-label">Sort:</label>
                     <select id="sort-select" onchange="loadJobs()">
-                        <option value="newest">Newest first</option>
-                        <option value="score">Best match</option>
+                        <option value="newest" data-i18n="sort-newest">Newest first</option>
+                        <option value="score" data-i18n="sort-score">Best match</option>
                     </select>
                 </div>
             </div>
@@ -113,16 +122,17 @@
         <div id="jobs-container"></div>
 
         <div id="load-more-container" style="display:none">
-            <button id="btn-load-more" onclick="loadMore()">Load more</button>
+            <button id="btn-load-more" onclick="loadMore()" data-i18n="btn-load-more">Load more</button>
         </div>
 
         <div id="empty-state" style="display:none">
             <div class="empty-icon">&#128203;</div>
-            <h2>No jobs yet</h2>
-            <p>Click <strong>Scan for Jobs</strong> to search all job boards.</p>
+            <h2 data-i18n="empty-title">No jobs yet</h2>
+            <p data-i18n-html="empty-text">Click <strong>Scan for Jobs</strong> to search all job boards.</p>
         </div>
     </main>
 
-    <script src="/static/app.js?v=2"></script>
+    <script src="/static/theme.js?v=3"></script>
+    <script src="/static/app.js?v=3"></script>
 </body>
 </html>

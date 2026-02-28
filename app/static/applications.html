@@ -5,16 +5,25 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Katya's JobFinder — My Applications</title>
     <link rel="icon" type="image/svg+xml" href="/static/favicon.svg">
-    <link rel="stylesheet" href="/static/style.css?v=2">
+    <link rel="stylesheet" href="/static/style.css?v=3">
 </head>
 <body>
     <header>
         <div class="header-content">
-            <h1><img src="/static/favicon.svg" alt="" class="header-icon">Katya's JobFinder</h1>
+            <h1><img src="/static/favicon.svg" alt="" class="header-icon"><span data-i18n="site-title">Katya's JobFinder</span></h1>
             <nav class="header-nav">
-                <a href="/" class="nav-link">Jobs</a>
-                <a href="/applications" class="nav-link active">My Applications</a>
+                <a href="/" class="nav-link" data-i18n="nav-jobs">Jobs</a>
+                <a href="/applications" class="nav-link active" data-i18n="nav-applications">My Applications</a>
             </nav>
+        </div>
+        <div class="header-controls">
+            <div class="lang-switcher">
+                <button class="lang-btn" data-lang="en">EN</button>
+                <button class="lang-btn" data-lang="ru">RU</button>
+                <button class="lang-btn" data-lang="ua">UA</button>
+            </div>
+            <button class="theme-toggle" id="theme-toggle" title="Toggle dark mode">&#127769;</button>
+            <button class="ukraine-toggle" id="ukraine-toggle" title="Ukraine mode" style="display:none">&#127482;&#127462;</button>
         </div>
     </header>
 
@@ -22,7 +31,7 @@
         <div class="kanban-board" id="kanban-board">
             <div class="kanban-column" data-status="interested">
                 <div class="kanban-column-header">
-                    <h2>Interested</h2>
+                    <h2 data-i18n="col-interested">Interested</h2>
                     <span class="kanban-count" id="count-interested">0</span>
                 </div>
                 <div class="kanban-cards" id="col-interested"
@@ -34,7 +43,7 @@
             </div>
             <div class="kanban-column" data-status="applied">
                 <div class="kanban-column-header">
-                    <h2>Applied</h2>
+                    <h2 data-i18n="col-applied">Applied</h2>
                     <span class="kanban-count" id="count-applied">0</span>
                 </div>
                 <div class="kanban-cards" id="col-applied"
@@ -46,7 +55,7 @@
             </div>
             <div class="kanban-column" data-status="interview">
                 <div class="kanban-column-header">
-                    <h2>Interview</h2>
+                    <h2 data-i18n="col-interview">Interview</h2>
                     <span class="kanban-count" id="count-interview">0</span>
                 </div>
                 <div class="kanban-cards" id="col-interview"
@@ -58,7 +67,7 @@
             </div>
             <div class="kanban-column" data-status="offer">
                 <div class="kanban-column-header">
-                    <h2>Offer</h2>
+                    <h2 data-i18n="col-offer">Offer</h2>
                     <span class="kanban-count" id="count-offer">0</span>
                 </div>
                 <div class="kanban-cards" id="col-offer"
@@ -70,7 +79,7 @@
             </div>
             <div class="kanban-column kanban-rejected" data-status="rejected">
                 <div class="kanban-column-header">
-                    <h2>Rejected</h2>
+                    <h2 data-i18n="col-rejected">Rejected</h2>
                     <span class="kanban-count" id="count-rejected">0</span>
                 </div>
                 <div class="kanban-cards" id="col-rejected"
@@ -84,8 +93,8 @@
 
         <div id="kanban-empty" style="display:none">
             <div class="empty-icon">&#128203;</div>
-            <h2>No saved applications</h2>
-            <p>Go to <a href="/">Jobs</a> and click <strong>Save</strong> on jobs you're interested in.</p>
+            <h2 data-i18n="kanban-empty-title">No saved applications</h2>
+            <p data-i18n-html="kanban-empty-text">Go to <a href="/">Jobs</a> and click <strong>Save</strong> on jobs you're interested in.</p>
         </div>
     </main>
 
@@ -93,14 +102,14 @@
     <div class="modal-overlay" id="modal-overlay" style="display:none" onclick="closeModal()">
         <div class="modal" onclick="event.stopPropagation()">
             <div class="modal-header">
-                <h2 id="modal-title">Cover Letter</h2>
+                <h2 id="modal-title" data-i18n="modal-cover-letter">Cover Letter</h2>
                 <button class="modal-close" onclick="closeModal()">&times;</button>
             </div>
             <div class="modal-body">
                 <pre id="modal-letter" class="cover-letter-text"></pre>
             </div>
             <div class="modal-footer">
-                <button class="btn-copy" onclick="copyLetter()">Copy to clipboard</button>
+                <button class="btn-copy" id="btn-copy-letter" onclick="copyLetter()" data-i18n="btn-copy">Copy to clipboard</button>
             </div>
         </div>
     </div>
@@ -109,26 +118,27 @@
     <div class="modal-overlay" id="notes-overlay" style="display:none" onclick="closeNotesModal()">
         <div class="modal modal-small" onclick="event.stopPropagation()">
             <div class="modal-header">
-                <h2>Edit Notes</h2>
+                <h2 data-i18n="modal-edit-notes">Edit Notes</h2>
                 <button class="modal-close" onclick="closeNotesModal()">&times;</button>
             </div>
             <div class="modal-body">
-                <textarea id="notes-text" rows="5" placeholder="Add your notes..."></textarea>
+                <textarea id="notes-text" rows="5" data-i18n-placeholder="notes-placeholder" placeholder="Add your notes..."></textarea>
                 <div class="notes-fields">
-                    <label>Date applied:
+                    <label><span data-i18n="label-date-applied">Date applied:</span>
                         <input type="date" id="notes-date-applied">
                     </label>
-                    <label>Reminder date:
+                    <label><span data-i18n="label-reminder">Reminder date:</span>
                         <input type="date" id="notes-reminder">
                     </label>
                 </div>
             </div>
             <div class="modal-footer">
-                <button class="btn-copy" onclick="saveNotes()">Save</button>
+                <button class="btn-copy" onclick="saveNotes()" data-i18n="btn-save-notes">Save</button>
             </div>
         </div>
     </div>
 
-    <script src="/static/applications.js?v=2"></script>
+    <script src="/static/theme.js?v=3"></script>
+    <script src="/static/applications.js?v=3"></script>
 </body>
 </html>

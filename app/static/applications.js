@@ -5,6 +5,11 @@ let editingJobId = null;
 
 document.addEventListener("DOMContentLoaded", loadApplications);
 
+// Called by theme.js when language changes
+function onLanguageChange() {
+    renderKanban();
+}
+
 async function api(path, opts = {}) {
     const resp = await fetch(path, opts);
     return resp.json();
@@ -62,12 +67,12 @@ function createKanbanCard(app) {
     card.addEventListener("dragend", () => card.classList.remove("dragging"));
 
     const dateSaved = app.date_saved ? new Date(app.date_saved).toLocaleDateString() : "";
-    const dateApplied = app.date_applied ? `Applied: ${app.date_applied}` : "";
+    const dateApplied = app.date_applied ? `${t('applied-label')} ${app.date_applied}` : "";
 
     let reminderHtml = "";
     if (app.reminder_date) {
         const isOverdue = new Date(app.reminder_date) <= new Date();
-        reminderHtml = `<div class="kanban-card-reminder">${isOverdue ? "\u26A0" : "\u23F0"} Reminder: ${app.reminder_date}</div>`;
+        reminderHtml = `<div class="kanban-card-reminder">${isOverdue ? "\u26A0" : "\u23F0"} ${t('reminder-label')} ${app.reminder_date}</div>`;
     }
 
     card.innerHTML = `
@@ -79,15 +84,15 @@ function createKanbanCard(app) {
             ${app.location ? ` \u2022 ${escHtml(app.location)}` : ""}
         </div>
         <div class="kanban-card-date">
-            Saved: ${dateSaved}
+            ${t('saved-label')} ${dateSaved}
             ${dateApplied ? ` \u2022 ${dateApplied}` : ""}
         </div>
         ${app.notes ? `<div class="kanban-card-notes">${escHtml(app.notes)}</div>` : ""}
         ${reminderHtml}
         <div class="kanban-card-actions">
-            <button class="kanban-btn" onclick="openNotes(${app.job_id})">Notes</button>
-            <button class="kanban-btn" onclick="generateCoverLetter(${app.job_id}, '${escAttr(app.title)}')">Cover Letter</button>
-            <button class="kanban-btn danger" onclick="removeApp(${app.job_id})">Remove</button>
+            <button class="kanban-btn" onclick="openNotes(${app.job_id})">${escHtml(t('btn-notes'))}</button>
+            <button class="kanban-btn" onclick="generateCoverLetter(${app.job_id}, '${escAttr(app.title)}')">${escHtml(t('btn-cover-letter'))}</button>
+            <button class="kanban-btn danger" onclick="removeApp(${app.job_id})">${escHtml(t('btn-remove'))}</button>
         </div>
     `;
 
@@ -149,15 +154,15 @@ async function saveNotes() {
 
 // ——— Cover letter ———
 async function generateCoverLetter(jobId, title) {
-    document.getElementById("modal-title").textContent = `Cover Letter — ${title}`;
-    document.getElementById("modal-letter").textContent = "Generating cover letter...";
+    document.getElementById("modal-title").textContent = `${t('modal-cover-letter')} \u2014 ${title}`;
+    document.getElementById("modal-letter").textContent = t('generating-letter');
     document.getElementById("modal-overlay").style.display = "flex";
 
     try {
         const data = await api(`/api/cover-letter?job_id=${jobId}`);
         document.getElementById("modal-letter").textContent = data.letter;
     } catch (err) {
-        document.getElementById("modal-letter").textContent = "Error generating cover letter.";
+        document.getElementById("modal-letter").textContent = t('letter-error');
     }
 }
 
@@ -168,9 +173,9 @@ function closeModal() {
 function copyLetter() {
     const text = document.getElementById("modal-letter").textContent;
     navigator.clipboard.writeText(text).then(() => {
-        const btn = document.querySelector(".modal-footer .btn-copy");
-        btn.textContent = "Copied!";
-        setTimeout(() => { btn.textContent = "Copy to clipboard"; }, 2000);
+        const btn = document.getElementById("btn-copy-letter");
+        btn.textContent = t('btn-copied');
+        setTimeout(() => { btn.textContent = t('btn-copy'); }, 2000);
     });
 }
 
