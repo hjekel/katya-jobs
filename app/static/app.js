@@ -1,14 +1,29 @@
-// Katya Jobs — Frontend (Jobs page)
+// Katya's JobFinder — Frontend (Jobs page)
 
-let currentSource = "";
 let currentOffset = 0;
 let currentTotal = 0;
 const PAGE_SIZE = 50;
 let searchTimeout = null;
 const HOME_ENCODED = "Laan+van+Decima+1B,+Haarlem";
 
+// Active filters state
+const activeFilters = {
+    category: null,
+    city: null,
+    company: null,
+    posting_type: null,
+    source: null,
+};
+
+// Filter counts data
+let filterData = null;
+let companiesExpanded = false;
+const MAX_COMPANIES_VISIBLE = 15;
+const isMobile = () => window.innerWidth <= 768;
+
 document.addEventListener("DOMContentLoaded", () => {
     loadStats();
+    loadFilters();
     loadJobs();
 });
 
@@ -17,19 +32,172 @@ async function api(path, opts = {}) {
     return resp.json();
 }
 
+// ——— Filter panels ———
+
+async function loadFilters() {
+    filterData = await api("/api/filters");
+    renderFilterChips();
+}
+
+function renderFilterChips() {
+    if (!filterData) return;
+
+    // Category chips
+    const catContainer = document.getElementById("chips-category");
+    catContainer.innerHTML = "";
+    for (const [cat, count] of Object.entries(filterData.categories || {})) {
+        catContainer.appendChild(createChip(cat, count, "category", cat));
+    }
+
+    // Location chips
+    const locContainer = document.getElementById("chips-location");
+    locContainer.innerHTML = "";
+    for (const [city, count] of Object.entries(filterData.cities || {})) {
+        if (city) locContainer.appendChild(createChip(city, count, "city", city));
+    }
+
+    // Company chips
+    renderCompanyChips();
+
+    // Posting type chips
+    const ptContainer = document.getElementById("chips-posting-type");
+    ptContainer.innerHTML = "";
+    const typeLabels = { direct: "Direct", recruiter: "Via recruiter", job_board: "Job board" };
+    for (const [ptype, count] of Object.entries(filterData.posting_types || {})) {
+        const chip = createChip(typeLabels[ptype] || ptype, count, "posting_type", ptype);
+        chip.classList.add(`type-${ptype}`);
+        ptContainer.appendChild(chip);
+    }
+
+    // Source chips
+    const srcContainer = document.getElementById("chips-source");
+    srcContainer.innerHTML = "";
+    for (const [src, count] of Object.entries(filterData.sources || {})) {
+        srcContainer.appendChild(createChip(src, count, "source", src));
+    }
+}
+
+function renderCompanyChips() {
+    const container = document.getElementById("chips-company");
+    container.innerHTML = "";
+    const companies = Object.entries(filterData.companies || {});
+    const showBtn = document.getElementById("btn-show-all-companies");
+
+    const limit = companiesExpanded ? companies.length : MAX_COMPANIES_VISIBLE;
+    companies.slice(0, limit).forEach(([company, count]) => {
+        container.appendChild(createChip(company, count, "company", company));
+    });
+
+    if (companies.length > MAX_COMPANIES_VISIBLE) {
+        showBtn.style.display = "inline";
+        showBtn.textContent = companiesExpanded
+            ? "Show less"
+            : `Show all (${companies.length})`;
+    } else {
+        showBtn.style.display = "none";
+    }
+}
+
+function showAllCompanies() {
+    companiesExpanded = !companiesExpanded;
+    renderCompanyChips();
+}
+
+function createChip(label, count, filterKey, filterValue) {
+    const chip = document.createElement("span");
+    chip.className = "chip";
+    if (activeFilters[filterKey] === filterValue) chip.classList.add("active");
+
+    chip.innerHTML = `${escHtml(label)} <span class="chip-count">${count}</span>`;
+    chip.addEventListener("click", () => {
+        if (activeFilters[filterKey] === filterValue) {
+            activeFilters[filterKey] = null;
+        } else {
+            activeFilters[filterKey] = filterValue;
+        }
+        renderFilterChips();
+        renderActiveFilters();
+        loadJobs();
+    });
+    return chip;
+}
+
+function togglePanel(headerEl) {
+    const panel = headerEl.closest(".filter-panel");
+    const body = panel.querySelector(".panel-body");
+
+    if (isMobile()) {
+        panel.classList.toggle("expanded");
+    } else {
+        headerEl.classList.toggle("collapsed");
+        body.classList.toggle("collapsed");
+    }
+}
+
+// ——— Active filters bar ———
+
+function renderActiveFilters() {
+    const container = document.getElementById("active-filters");
+    const chipsContainer = document.getElementById("active-filters-chips");
+    chipsContainer.innerHTML = "";
+
+    const filterLabels = {
+        category: "Category",
+        city: "Location",
+        company: "Company",
+        posting_type: "Type",
+        source: "Source",
+    };
+    const typeLabels = { direct: "Direct", recruiter: "Via recruiter", job_board: "Job board" };
+
+    let hasActive = false;
+    for (const [key, value] of Object.entries(activeFilters)) {
+        if (value !== null) {
+            hasActive = true;
+            const chip = document.createElement("span");
+            chip.className = "active-chip";
+            const displayValue = key === "posting_type" ? (typeLabels[value] || value) : value;
+            chip.innerHTML = `${filterLabels[key]}: ${escHtml(displayValue)} <span class="active-chip-remove" data-key="${key}">&times;</span>`;
+            chip.querySelector(".active-chip-remove").addEventListener("click", (e) => {
+                e.stopPropagation();
+                activeFilters[key] = null;
+                renderFilterChips();
+                renderActiveFilters();
+                loadJobs();
+            });
+            chipsContainer.appendChild(chip);
+        }
+    }
+
+    container.style.display = hasActive ? "flex" : "none";
+}
+
+function clearAllFilters() {
+    for (const key of Object.keys(activeFilters)) {
+        activeFilters[key] = null;
+    }
+    renderFilterChips();
+    renderActiveFilters();
+    loadJobs();
+}
+
 // ——— Load jobs ———
+
 async function loadJobs(append = false) {
     if (!append) currentOffset = 0;
 
     const search = document.getElementById("search-input").value.trim();
     const onlyNew = document.getElementById("toggle-new").checked;
-    const minSalary = parseInt(document.getElementById("min-salary").value) || 0;
+    const sort = document.getElementById("sort-select").value;
 
-    const params = new URLSearchParams({ limit: PAGE_SIZE, offset: currentOffset });
-    if (currentSource) params.set("source", currentSource);
+    const params = new URLSearchParams({ limit: PAGE_SIZE, offset: currentOffset, sort });
     if (search) params.set("search", search);
     if (onlyNew) params.set("only_new", "true");
-    if (minSalary > 0) params.set("min_salary", minSalary);
+    if (activeFilters.category) params.set("category", activeFilters.category);
+    if (activeFilters.city) params.set("city", activeFilters.city);
+    if (activeFilters.company) params.set("company", activeFilters.company);
+    if (activeFilters.posting_type) params.set("posting_type", activeFilters.posting_type);
+    if (activeFilters.source) params.set("source", activeFilters.source);
 
     const data = await api(`/api/jobs?${params}`);
     currentTotal = data.total;
@@ -43,6 +211,7 @@ async function loadJobs(append = false) {
     if (data.jobs.length === 0 && !append) {
         emptyState.style.display = "block";
         loadMoreContainer.style.display = "none";
+        document.getElementById("results-count").textContent = "No jobs found";
         return;
     }
 
@@ -51,6 +220,7 @@ async function loadJobs(append = false) {
 
     const shown = currentOffset + data.jobs.length;
     loadMoreContainer.style.display = shown < currentTotal ? "block" : "none";
+    document.getElementById("results-count").textContent = `Showing ${shown} of ${currentTotal} jobs`;
 }
 
 function loadMore() {
@@ -59,6 +229,7 @@ function loadMore() {
 }
 
 // ——— Build Google Maps commute URL ———
+
 function mapsUrl(location) {
     if (!location) return null;
     const dest = encodeURIComponent(location);
@@ -66,6 +237,7 @@ function mapsUrl(location) {
 }
 
 // ——— Create a job card ———
+
 function createJobCard(job) {
     const card = document.createElement("div");
     card.className = "job-card" + (job.is_new ? " is-new" : "");
@@ -80,7 +252,7 @@ function createJobCard(job) {
         if (job.salary_min === job.salary_max) {
             salaryHtml = `<div class="job-salary has-salary">\u20AC${job.salary_min.toLocaleString()}/month</div>`;
         } else {
-            salaryHtml = `<div class="job-salary has-salary">\u20AC${job.salary_min.toLocaleString()} - \u20AC${job.salary_max.toLocaleString()}/month</div>`;
+            salaryHtml = `<div class="job-salary has-salary">\u20AC${job.salary_min.toLocaleString()} \u2013 \u20AC${job.salary_max.toLocaleString()}/month</div>`;
         }
     } else {
         salaryHtml = `<div class="job-salary no-salary">Salary not listed</div>`;
@@ -98,6 +270,31 @@ function createJobCard(job) {
             </div>`;
     }
 
+    // Posting age
+    let ageHtml = "";
+    if (job.posting_age_text) {
+        const ageColor = job.posting_age_color || "grey";
+        ageHtml = `<span><span class="age-dot ${ageColor}"></span> ${escHtml(job.posting_age_text)}</span>`;
+    } else if (job.date_posted) {
+        ageHtml = `<span>\uD83D\uDCC5 ${escHtml(job.date_posted)}</span>`;
+    }
+
+    // Posting type badge
+    let typeBadge = "";
+    if (job.posting_type === "recruiter") {
+        typeBadge = `<span class="badge-recruiter">Via recruiter</span>`;
+    } else if (job.posting_type === "direct") {
+        typeBadge = `<span class="badge-direct">Direct</span>`;
+    } else if (job.posting_type === "job_board") {
+        typeBadge = `<span class="badge-jobboard">Job board</span>`;
+    }
+
+    // Category badge
+    let categoryBadge = "";
+    if (job.category && job.category !== "Other") {
+        categoryBadge = `<span class="chip" style="cursor:default;font-size:0.7rem;padding:2px 6px">${escHtml(job.category)}</span>`;
+    }
+
     card.innerHTML = `
         <div class="job-card-header">
             <a class="job-title" href="${escHtml(job.url)}" target="_blank" rel="noopener"
@@ -109,13 +306,17 @@ function createJobCard(job) {
         <div class="job-meta">
             ${job.company ? `<span>\uD83C\uDFE2 ${escHtml(job.company)}</span>` : ""}
             ${job.location ? `<span>\uD83D\uDCCD ${escHtml(job.location)}</span>` : ""}
-            ${job.date_posted ? `<span>\uD83D\uDCC5 ${escHtml(job.date_posted)}</span>` : ""}
+            ${ageHtml}
+            ${typeBadge}
+            ${categoryBadge}
         </div>
         ${salaryHtml}
         ${commuteHtml}
         ${job.snippet ? `<p class="job-snippet">${escHtml(job.snippet)}</p>` : ""}
         <div class="job-footer">
-            <span class="job-source ${sourceClass}">${escHtml(job.source)}</span>
+            <div class="job-footer-left">
+                <span class="job-source ${sourceClass}">Posted on ${escHtml(job.source)}</span>
+            </div>
             <div class="job-actions">
                 <button class="btn-save" id="save-${job.id}"
                         onclick="event.stopPropagation(); saveJob(${job.id})">Save</button>
@@ -138,6 +339,7 @@ function createJobCard(job) {
 }
 
 // ——— Toggle fit analysis ———
+
 async function toggleFit(job) {
     const fitEl = document.getElementById(`fit-${job.id}`);
     if (!fitEl) return;
@@ -174,6 +376,7 @@ async function toggleFit(job) {
 }
 
 // ——— Save job to application tracker ———
+
 async function saveJob(jobId) {
     const data = await api(`/api/applications/${jobId}/save`, { method: "POST" });
     const btn = document.getElementById(`save-${jobId}`);
@@ -183,13 +386,7 @@ async function saveJob(jobId) {
     }
 }
 
-// ——— Source filter ———
-function setSource(btn, source) {
-    currentSource = source;
-    document.querySelectorAll(".filter-btn").forEach(b => b.classList.remove("active"));
-    btn.classList.add("active");
-    loadJobs();
-}
+// ——— Search ———
 
 function debounceSearch() {
     clearTimeout(searchTimeout);
@@ -197,6 +394,7 @@ function debounceSearch() {
 }
 
 // ——— Scrape ———
+
 async function startScrape() {
     const btn = document.getElementById("btn-scrape");
     const statusBar = document.getElementById("status-bar");
@@ -218,6 +416,7 @@ async function startScrape() {
             statusText.textContent = "Scrape is already running.";
         }
         loadStats();
+        loadFilters();
         loadJobs();
     } catch (err) {
         statusText.textContent = "Error scanning. Try again later.";
@@ -238,6 +437,7 @@ async function hideJob(jobId) {
         setTimeout(() => card.remove(), 300);
     }
     loadStats();
+    loadFilters();
 }
 
 async function loadStats() {

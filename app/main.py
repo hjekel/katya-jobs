@@ -1,4 +1,4 @@
-"""FastAPI application — Katya Jobs finder."""
+"""FastAPI application — Katya's JobFinder."""
 
 import asyncio
 import logging
@@ -12,10 +12,11 @@ from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 
 from app.database import (
-    get_jobs, get_job_by_id, get_job_count, get_stats, hide_job, init_db, mark_all_seen,
+    get_jobs, get_job_by_id, get_job_count, get_stats, get_filter_counts,
+    hide_job, init_db, mark_all_seen,
     save_application, update_application, remove_application, get_applications,
 )
-from app.scorer import generate_fit_analysis, generate_cover_letter, get_commute_info
+from app.scorer import generate_fit_analysis, generate_cover_letter, get_commute_info, compute_posting_age
 from app.scrapers import scrape_all
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s")
@@ -33,7 +34,7 @@ async def lifespan(app: FastAPI):
     yield
 
 
-app = FastAPI(title="Katya Jobs", lifespan=lifespan)
+app = FastAPI(title="Katya's JobFinder", lifespan=lifespan)
 app.mount("/static", StaticFiles(directory="app/static"), name="static")
 
 
@@ -55,13 +56,37 @@ async def api_jobs(
     search: Optional[str] = Query(None),
     only_new: bool = Query(False),
     min_salary: Optional[int] = Query(None),
+    category: Optional[str] = Query(None),
+    city: Optional[str] = Query(None),
+    posting_type: Optional[str] = Query(None),
+    company: Optional[str] = Query(None),
+    sort: str = Query("newest"),
     limit: int = Query(200, le=500),
     offset: int = Query(0, ge=0),
 ):
-    jobs = get_jobs(source=source, search=search, only_new=only_new,
-                    min_salary=min_salary, limit=limit, offset=offset)
-    total = get_job_count(source=source, only_new=only_new, min_salary=min_salary)
+    jobs = get_jobs(
+        source=source, search=search, only_new=only_new,
+        min_salary=min_salary, category=category, city=city,
+        posting_type=posting_type, company=company, sort=sort,
+        limit=limit, offset=offset,
+    )
+    total = get_job_count(
+        source=source, search=search, only_new=only_new,
+        min_salary=min_salary, category=category, city=city,
+        posting_type=posting_type, company=company,
+    )
+    # Enrich each job with posting age
+    for job in jobs:
+        age = compute_posting_age(job.get("date_posted"), job.get("date_scraped"))
+        job["posting_age_text"] = age["text"]
+        job["posting_age_color"] = age["color"]
     return {"jobs": jobs, "total": total}
+
+
+@app.get("/api/filters")
+async def api_filters():
+    """Return counts for all filter panels."""
+    return get_filter_counts()
 
 
 @app.get("/api/stats")

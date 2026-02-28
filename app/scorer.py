@@ -1,6 +1,7 @@
-"""Score, filter, cover letter, and salary extraction for Katya Jobs."""
+"""Score, filter, cover letter, and salary extraction for Katya's JobFinder."""
 
 import re
+from datetime import datetime, timezone
 from typing import Optional
 
 from app.config import (
@@ -20,6 +21,7 @@ from app.config import (
     SENIORITY_BONUS,
     HOME_ADDRESS_ENCODED,
     COMMUTE_ESTIMATES,
+    TARGET_CITIES,
 )
 
 _WORD_SPLIT = re.compile(r"[^a-zA-Zéèëïöüà]+")
@@ -117,6 +119,204 @@ def should_exclude(title: str, description: str = "") -> bool:
     if is_dutch_text(title, description):
         return True
     return False
+
+
+# --------------------------------------------------------------------------
+# Category classification
+# --------------------------------------------------------------------------
+
+CATEGORY_RULES = [
+    ("Finance & Accounting", [
+        "accountant", "bookkeeper", "finance", "accounting", "accounts payable",
+        "accounts receivable", "financial", "fiscal", "boekhouder", "administrateur",
+        "credit control", "invoice", "billing", "payroll", "tax",
+    ]),
+    ("Administration & Office", [
+        "admin", "office", "secretary", "receptionist", "office manager", "back office",
+        "administrative", "office assistant",
+    ]),
+    ("Customer Service", [
+        "customer service", "customer support", "helpdesk", "call centre",
+        "call center", "klantenservice",
+    ]),
+    ("Operations & Logistics", [
+        "operations", "logistics", "supply chain", "warehouse", "planning",
+    ]),
+    ("Data Entry & Processing", [
+        "data entry", "data processing", "document", "scanning", "archiving",
+    ]),
+    ("Retail", [
+        "retail", "sales assistant", "shop", "store", "winkel", "verkoop",
+    ]),
+]
+
+
+def classify_category(title: str, description: str = "") -> str:
+    """Classify a job into a category based on title and description keywords."""
+    combined = f"{title} {description}".lower()
+    for category, keywords in CATEGORY_RULES:
+        if any(kw in combined for kw in keywords):
+            return category
+    return "Other"
+
+
+# --------------------------------------------------------------------------
+# City extraction
+# --------------------------------------------------------------------------
+
+# Normalise common location variants
+_CITY_ALIASES = {
+    "amsterdam-zuidoost": "Amsterdam",
+    "amsterdam zuidoost": "Amsterdam",
+    "amsterdam zuid": "Amsterdam",
+    "amsterdam west": "Amsterdam",
+    "amsterdam noord": "Amsterdam",
+    "schiphol-rijk": "Schiphol",
+    "nieuw-vennep": "Nieuw-Vennep",
+}
+
+
+def extract_city(location: str) -> str:
+    """Extract and normalise the city name from a job location string."""
+    if not location:
+        return ""
+    loc_lower = location.lower().strip()
+
+    # Check aliases first
+    for alias, city in _CITY_ALIASES.items():
+        if alias in loc_lower:
+            return city
+
+    # Check target cities
+    for city in TARGET_CITIES:
+        if city.lower() in loc_lower:
+            return city
+
+    # Fallback: use the first comma-separated part cleaned up
+    first_part = location.split(",")[0].strip()
+    # Remove common prefixes/suffixes
+    for prefix in ["Regio ", "regio ", "Area ", "area ", "Omgeving ", "omgeving "]:
+        if first_part.startswith(prefix):
+            first_part = first_part[len(prefix):]
+    return first_part if first_part else ""
+
+
+# --------------------------------------------------------------------------
+# Recruiter detection
+# --------------------------------------------------------------------------
+
+KNOWN_RECRUITERS = {
+    "randstad", "hays", "michael page", "robert half", "page personnel",
+    "brunel", "yer", "adecco", "tempo-team", "tempo team", "manpower",
+    "olympia", "yacht", "undutchables", "adams multilingual recruitment",
+    "adams recruitment", "unique", "start people", "staffing group",
+    "kelly services", "sander & partners", "progressive", "connected",
+}
+
+JOB_BOARD_SOURCES = {"indeed", "linkedin", "glassdoor"}
+
+
+def detect_posting_type(company: str, source: str) -> str:
+    """Detect whether a posting is direct, via recruiter, or from a job board.
+    Returns 'direct', 'recruiter', or 'job_board'."""
+    company_lower = (company or "").lower().strip()
+
+    # Check if company is a known recruiter
+    for recruiter in KNOWN_RECRUITERS:
+        if recruiter in company_lower:
+            return "recruiter"
+
+    # Check source-level (e.g. undutchables is always a recruiter site)
+    source_lower = (source or "").lower()
+    if source_lower in ("undutchables", "adams"):
+        return "recruiter"
+
+    # Job boards that aggregate
+    if source_lower in JOB_BOARD_SOURCES:
+        return "job_board"
+
+    return "direct"
+
+
+# --------------------------------------------------------------------------
+# Posting age
+# --------------------------------------------------------------------------
+
+def compute_posting_age(date_posted: Optional[str], date_scraped: Optional[str] = None) -> dict:
+    """Compute human-readable posting age and freshness indicator.
+    Returns {text, color} where color is 'green', 'orange', or 'grey'."""
+    if not date_posted:
+        return {"text": "", "color": "grey"}
+
+    try:
+        # Try parsing ISO format or common date strings
+        for fmt in ("%Y-%m-%d", "%Y-%m-%dT%H:%M:%S", "%d %b %Y", "%B %d, %Y", "%d-%m-%Y"):
+            try:
+                posted_dt = datetime.strptime(date_posted.split("+")[0].split("Z")[0].strip(), fmt)
+                break
+            except ValueError:
+                continue
+        else:
+            # Try relative dates like "3 days ago", "Just posted", etc.
+            lower = date_posted.lower().strip()
+            if "just" in lower or "today" in lower or "now" in lower:
+                return {"text": "Just posted", "color": "green"}
+            if "yesterday" in lower or "1 day" in lower:
+                return {"text": "1 day ago", "color": "green"}
+            # Try to extract number of days
+            import re as _re
+            m = _re.search(r"(\d+)\s*day", lower)
+            if m:
+                days = int(m.group(1))
+                if days <= 3:
+                    return {"text": f"{days} days ago", "color": "green"}
+                elif days <= 7:
+                    return {"text": f"{days} days ago", "color": "orange"}
+                elif days <= 14:
+                    return {"text": "2 weeks ago", "color": "grey"}
+                elif days <= 21:
+                    return {"text": "3 weeks ago", "color": "grey"}
+                else:
+                    return {"text": "Older", "color": "grey"}
+            m = _re.search(r"(\d+)\s*week", lower)
+            if m:
+                weeks = int(m.group(1))
+                if weeks <= 1:
+                    return {"text": "1 week ago", "color": "orange"}
+                elif weeks <= 2:
+                    return {"text": "2 weeks ago", "color": "grey"}
+                elif weeks <= 3:
+                    return {"text": "3 weeks ago", "color": "grey"}
+                else:
+                    return {"text": "Older", "color": "grey"}
+            m = _re.search(r"(\d+)\s*month", lower)
+            if m:
+                return {"text": "Older", "color": "grey"}
+            # Unknown format — return raw text
+            return {"text": date_posted, "color": "grey"}
+
+        now = datetime.now(timezone.utc).replace(tzinfo=None)
+        delta = now - posted_dt
+        days = delta.days
+
+        if days < 0:
+            days = 0
+        if days == 0:
+            return {"text": "Just posted", "color": "green"}
+        elif days == 1:
+            return {"text": "1 day ago", "color": "green"}
+        elif days <= 3:
+            return {"text": f"{days} days ago", "color": "green"}
+        elif days <= 7:
+            return {"text": f"{days} days ago", "color": "orange"}
+        elif days <= 14:
+            return {"text": "2 weeks ago", "color": "grey"}
+        elif days <= 21:
+            return {"text": "3 weeks ago", "color": "grey"}
+        else:
+            return {"text": "Older", "color": "grey"}
+    except Exception:
+        return {"text": date_posted or "", "color": "grey"}
 
 
 # --------------------------------------------------------------------------

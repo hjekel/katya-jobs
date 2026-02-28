@@ -7,6 +7,7 @@ from datetime import datetime, timezone
 from typing import Optional
 
 from app.config import DATABASE_PATH
+from app.scorer import classify_category, extract_city, detect_posting_type
 
 
 def get_db_path() -> str:
@@ -75,6 +76,32 @@ def init_db():
             conn.execute("ALTER TABLE jobs ADD COLUMN salary_max INTEGER")
             conn.execute("ALTER TABLE jobs ADD COLUMN salary_raw TEXT")
 
+        # Migration: add category, city, posting_type columns
+        try:
+            conn.execute("SELECT category FROM jobs LIMIT 1")
+        except sqlite3.OperationalError:
+            conn.execute("ALTER TABLE jobs ADD COLUMN category TEXT DEFAULT ''")
+            conn.execute("ALTER TABLE jobs ADD COLUMN city TEXT DEFAULT ''")
+            conn.execute("ALTER TABLE jobs ADD COLUMN posting_type TEXT DEFAULT 'direct'")
+            conn.execute("CREATE INDEX IF NOT EXISTS idx_jobs_category ON jobs(category)")
+            conn.execute("CREATE INDEX IF NOT EXISTS idx_jobs_city ON jobs(city)")
+            conn.execute("CREATE INDEX IF NOT EXISTS idx_jobs_posting_type ON jobs(posting_type)")
+            # Backfill existing jobs
+            rows = conn.execute("SELECT id, title, snippet, location, company, source FROM jobs").fetchall()
+            for row in rows:
+                cat = classify_category(row["title"] or "", row["snippet"] or "")
+                city = extract_city(row["location"] or "")
+                ptype = detect_posting_type(row["company"] or "", row["source"] or "")
+                conn.execute(
+                    "UPDATE jobs SET category = ?, city = ?, posting_type = ? WHERE id = ?",
+                    (cat, city, ptype, row["id"]),
+                )
+
+        # Ensure indexes exist even if columns already existed
+        conn.execute("CREATE INDEX IF NOT EXISTS idx_jobs_category ON jobs(category)")
+        conn.execute("CREATE INDEX IF NOT EXISTS idx_jobs_city ON jobs(city)")
+        conn.execute("CREATE INDEX IF NOT EXISTS idx_jobs_posting_type ON jobs(posting_type)")
+
 
 def upsert_job(
     external_id: str,
@@ -89,6 +116,9 @@ def upsert_job(
     salary_min: Optional[int] = None,
     salary_max: Optional[int] = None,
     salary_raw: Optional[str] = None,
+    category: str = "",
+    city: str = "",
+    posting_type: str = "direct",
 ) -> bool:
     """Insert a job if it doesn't exist. Returns True if newly inserted."""
     now = datetime.now(timezone.utc).isoformat()
@@ -97,10 +127,12 @@ def upsert_job(
             conn.execute(
                 """INSERT INTO jobs
                    (external_id, title, company, location, snippet, url, source,
-                    score, salary_min, salary_max, salary_raw, date_posted, date_scraped)
-                   VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+                    score, salary_min, salary_max, salary_raw, date_posted, date_scraped,
+                    category, city, posting_type)
+                   VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
                 (external_id, title, company, location, snippet, url, source,
-                 score, salary_min, salary_max, salary_raw, date_posted, now),
+                 score, salary_min, salary_max, salary_raw, date_posted, now,
+                 category, city, posting_type),
             )
             return True
         except sqlite3.IntegrityError:
@@ -112,6 +144,11 @@ def get_jobs(
     search: Optional[str] = None,
     only_new: bool = False,
     min_salary: Optional[int] = None,
+    category: Optional[str] = None,
+    city: Optional[str] = None,
+    posting_type: Optional[str] = None,
+    company: Optional[str] = None,
+    sort: str = "newest",
     limit: int = 200,
     offset: int = 0,
 ) -> list[dict]:
@@ -128,12 +165,31 @@ def get_jobs(
         term = f"%{search}%"
         params.extend([term, term, term])
     if min_salary is not None:
-        # Show jobs with salary >= min OR jobs with no salary listed
         conditions.append("(salary_max >= ? OR salary_min IS NULL)")
         params.append(min_salary)
+    if category:
+        conditions.append("category = ?")
+        params.append(category)
+    if city:
+        conditions.append("city = ?")
+        params.append(city)
+    if posting_type:
+        conditions.append("posting_type = ?")
+        params.append(posting_type)
+    if company:
+        conditions.append("company = ?")
+        params.append(company)
 
     where = " AND ".join(conditions)
-    query = f"SELECT * FROM jobs WHERE {where} ORDER BY score DESC, date_scraped DESC LIMIT ? OFFSET ?"
+
+    if sort == "newest":
+        order = "date_scraped DESC, date_posted DESC"
+    elif sort == "score":
+        order = "score DESC, date_scraped DESC"
+    else:
+        order = "date_scraped DESC"
+
+    query = f"SELECT * FROM jobs WHERE {where} ORDER BY {order} LIMIT ? OFFSET ?"
     params.extend([limit, offset])
 
     with get_db() as conn:
@@ -141,7 +197,16 @@ def get_jobs(
         return [dict(row) for row in rows]
 
 
-def get_job_count(source: Optional[str] = None, only_new: bool = False, min_salary: Optional[int] = None) -> int:
+def get_job_count(
+    source: Optional[str] = None,
+    only_new: bool = False,
+    min_salary: Optional[int] = None,
+    search: Optional[str] = None,
+    category: Optional[str] = None,
+    city: Optional[str] = None,
+    posting_type: Optional[str] = None,
+    company: Optional[str] = None,
+) -> int:
     conditions = ["is_hidden = 0"]
     params: list = []
     if source:
@@ -152,6 +217,22 @@ def get_job_count(source: Optional[str] = None, only_new: bool = False, min_sala
     if min_salary is not None:
         conditions.append("(salary_max >= ? OR salary_min IS NULL)")
         params.append(min_salary)
+    if search:
+        conditions.append("(title LIKE ? OR company LIKE ? OR snippet LIKE ?)")
+        term = f"%{search}%"
+        params.extend([term, term, term])
+    if category:
+        conditions.append("category = ?")
+        params.append(category)
+    if city:
+        conditions.append("city = ?")
+        params.append(city)
+    if posting_type:
+        conditions.append("posting_type = ?")
+        params.append(posting_type)
+    if company:
+        conditions.append("company = ?")
+        params.append(company)
     where = " AND ".join(conditions)
     with get_db() as conn:
         row = conn.execute(f"SELECT COUNT(*) as cnt FROM jobs WHERE {where}", params).fetchone()
@@ -172,6 +253,33 @@ def mark_all_seen():
 def hide_job(job_id: int):
     with get_db() as conn:
         conn.execute("UPDATE jobs SET is_hidden = 1 WHERE id = ?", (job_id,))
+
+
+def get_filter_counts() -> dict:
+    """Get counts for all filter panels (category, city, company, posting_type, source)."""
+    with get_db() as conn:
+        categories = conn.execute(
+            "SELECT category, COUNT(*) as c FROM jobs WHERE is_hidden = 0 AND category != '' GROUP BY category ORDER BY c DESC"
+        ).fetchall()
+        cities = conn.execute(
+            "SELECT city, COUNT(*) as c FROM jobs WHERE is_hidden = 0 AND city != '' GROUP BY city ORDER BY c DESC"
+        ).fetchall()
+        companies = conn.execute(
+            "SELECT company, COUNT(*) as c FROM jobs WHERE is_hidden = 0 AND company IS NOT NULL AND company != '' GROUP BY company ORDER BY c DESC"
+        ).fetchall()
+        posting_types = conn.execute(
+            "SELECT posting_type, COUNT(*) as c FROM jobs WHERE is_hidden = 0 GROUP BY posting_type ORDER BY c DESC"
+        ).fetchall()
+        sources = conn.execute(
+            "SELECT source, COUNT(*) as c FROM jobs WHERE is_hidden = 0 GROUP BY source ORDER BY c DESC"
+        ).fetchall()
+        return {
+            "categories": {row["category"]: row["c"] for row in categories},
+            "cities": {row["city"]: row["c"] for row in cities},
+            "companies": {row["company"]: row["c"] for row in companies},
+            "posting_types": {row["posting_type"]: row["c"] for row in posting_types},
+            "sources": {row["source"]: row["c"] for row in sources},
+        }
 
 
 def get_stats() -> dict:

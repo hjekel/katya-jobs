@@ -1,4 +1,4 @@
-// Katya Jobs — Applications Kanban Board
+// Katya's JobFinder — Applications Kanban Board
 
 let allApplications = [];
 let editingJobId = null;

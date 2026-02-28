@@ -3,13 +3,14 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Katya Jobs — Job Finder</title>
+    <title>Katya's JobFinder</title>
+    <link rel="icon" type="image/svg+xml" href="/static/favicon.svg">
     <link rel="stylesheet" href="/static/style.css">
 </head>
 <body>
     <header>
         <div class="header-content">
-            <h1>Katya Jobs</h1>
+            <h1><img src="/static/favicon.svg" alt="" class="header-icon">Katya's JobFinder</h1>
             <nav class="header-nav">
                 <a href="/" class="nav-link active">Jobs</a>
                 <a href="/applications" class="nav-link">My Applications</a>
@@ -27,35 +28,87 @@
     </header>
 
     <main>
-        <div class="controls">
-            <input type="text" id="search-input" placeholder="Search jobs..." oninput="debounceSearch()">
-            <div class="filters">
-                <button class="filter-btn active" data-source="" onclick="setSource(this, '')">All</button>
-                <button class="filter-btn" data-source="indeed" onclick="setSource(this, 'indeed')">Indeed</button>
-                <button class="filter-btn" data-source="iamexpat" onclick="setSource(this, 'iamexpat')">IamExpat</button>
-                <button class="filter-btn" data-source="undutchables" onclick="setSource(this, 'undutchables')">Undutchables</button>
-                <button class="filter-btn" data-source="linkedin" onclick="setSource(this, 'linkedin')">LinkedIn</button>
-                <button class="filter-btn" data-source="adams" onclick="setSource(this, 'adams')">Adams</button>
-                <button class="filter-btn" data-source="welcometonl" onclick="setSource(this, 'welcometonl')">Welcome to NL</button>
-            </div>
-            <div class="filter-row">
-                <label class="toggle-new">
-                    <input type="checkbox" id="toggle-new" onchange="loadJobs()"> Show only new
-                </label>
-                <div class="salary-filter">
-                    <label for="min-salary">Min salary:</label>
-                    <input type="number" id="min-salary" value="0" min="0" max="10000" step="500"
-                           onchange="loadJobs()">
-                    <span class="salary-hint">&euro;/month bruto (0 = any)</span>
-                </div>
-            </div>
-        </div>
-
+        <!-- Status bar for scraping -->
         <div id="status-bar" style="display:none">
             <div class="spinner"></div>
             <span id="status-text">Scanning job boards...</span>
         </div>
 
+        <!-- Search bar -->
+        <div class="search-bar">
+            <input type="text" id="search-input" placeholder="Search jobs by title, company, or keyword..." oninput="debounceSearch()">
+        </div>
+
+        <!-- Filter Panels (2x2 on mobile, 4-col on desktop) -->
+        <div class="filter-panels">
+            <div class="filter-panel" id="panel-category">
+                <div class="panel-header" onclick="togglePanel(this)">
+                    <h3>Category</h3>
+                    <span class="panel-toggle">&#9660;</span>
+                </div>
+                <div class="panel-body">
+                    <div class="chip-list" id="chips-category"></div>
+                </div>
+            </div>
+
+            <div class="filter-panel" id="panel-location">
+                <div class="panel-header" onclick="togglePanel(this)">
+                    <h3>Location</h3>
+                    <span class="panel-toggle">&#9660;</span>
+                </div>
+                <div class="panel-body">
+                    <div class="chip-list" id="chips-location"></div>
+                </div>
+            </div>
+
+            <div class="filter-panel" id="panel-company">
+                <div class="panel-header" onclick="togglePanel(this)">
+                    <h3>Company</h3>
+                    <span class="panel-toggle">&#9660;</span>
+                </div>
+                <div class="panel-body">
+                    <div class="chip-list" id="chips-company"></div>
+                    <button class="btn-show-all" id="btn-show-all-companies" style="display:none"
+                            onclick="showAllCompanies()">Show all</button>
+                </div>
+            </div>
+
+            <div class="filter-panel" id="panel-source">
+                <div class="panel-header" onclick="togglePanel(this)">
+                    <h3>Source</h3>
+                    <span class="panel-toggle">&#9660;</span>
+                </div>
+                <div class="panel-body">
+                    <div class="chip-list" id="chips-posting-type"></div>
+                    <div class="chip-list" id="chips-source" style="margin-top:6px"></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Active Filters Bar -->
+        <div class="active-filters" id="active-filters" style="display:none">
+            <div class="active-filters-chips" id="active-filters-chips"></div>
+            <button class="btn-clear-filters" onclick="clearAllFilters()">Clear all</button>
+        </div>
+
+        <!-- Controls row -->
+        <div class="controls-row">
+            <div class="results-count" id="results-count">Showing 0 jobs</div>
+            <div class="controls-right">
+                <label class="toggle-new">
+                    <input type="checkbox" id="toggle-new" onchange="loadJobs()"> Show only new
+                </label>
+                <div class="sort-control">
+                    <label for="sort-select">Sort:</label>
+                    <select id="sort-select" onchange="loadJobs()">
+                        <option value="newest">Newest first</option>
+                        <option value="score">Best match</option>
+                    </select>
+                </div>
+            </div>
+        </div>
+
+        <!-- Job Results List -->
         <div id="jobs-container"></div>
 
         <div id="load-more-container" style="display:none">

@@ -1,4 +1,4 @@
-"""Configuration constants for Katya Jobs."""
+"""Configuration constants for Katya's JobFinder."""
 
 # Home address for commute calculations
 HOME_ADDRESS = "Laan van Decima 1B, Haarlem"

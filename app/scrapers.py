@@ -14,7 +14,7 @@ from app.config import (
     REQUEST_TIMEOUT,
     USER_AGENT,
 )
-from app.scorer import compute_score, should_exclude, extract_salary
+from app.scorer import compute_score, should_exclude, extract_salary, classify_category, extract_city, detect_posting_type
 
 logger = logging.getLogger(__name__)
 
@@ -519,6 +519,9 @@ async def scrape_all() -> dict[str, int]:
                 new_count = 0
                 for job in jobs:
                     sal = job.salary
+                    cat = classify_category(job.title, job.snippet or "")
+                    city = extract_city(job.location or "")
+                    ptype = detect_posting_type(job.company or "", job.source)
                     inserted = upsert_job(
                         external_id=job.external_id,
                         title=job.title,
@@ -532,6 +535,9 @@ async def scrape_all() -> dict[str, int]:
                         salary_min=sal["min"] if sal else None,
                         salary_max=sal["max"] if sal else None,
                         salary_raw=sal["raw"] if sal else None,
+                        category=cat,
+                        city=city,
+                        posting_type=ptype,
                     )
                     if inserted:
                         new_count += 1
