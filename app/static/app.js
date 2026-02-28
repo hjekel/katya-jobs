@@ -4,28 +4,39 @@ let currentOffset = 0;
 let currentTotal = 0;
 const PAGE_SIZE = 50;
 let searchTimeout = null;
-let loadGeneration = 0; // guards against race conditions between overlapping loadJobs calls
+let loadGeneration = 0;
 const HOME_ENCODED = "Laan+van+Decima+1B,+Haarlem";
 
-// Active filters state
+// Active filters state (company and posting_type removed, only source remains)
 const activeFilters = {
     category: null,
     city: null,
-    company: null,
-    posting_type: null,
     source: null,
 };
 
 // Filter counts data
 let filterData = null;
-let companiesExpanded = false;
-const MAX_COMPANIES_VISIBLE = 15;
 const isMobile = () => window.innerWidth <= 768;
 
+// Exclude Dutch toggle — default ON, stored in cookie
+let excludeDutch = getCookie('excludeDutch') !== 'false';
+
 document.addEventListener("DOMContentLoaded", () => {
+    // Restore exclude Dutch toggle from cookie
+    const toggle = document.getElementById("toggle-dutch");
+    if (toggle) toggle.checked = excludeDutch;
+
     loadStats();
     loadFilters();
     loadJobs();
+    loadCustomKeywords();
+    loadCustomBoards();
+
+    // Enter key for keyword/board inputs
+    const kwInput = document.getElementById("input-keyword");
+    if (kwInput) kwInput.addEventListener("keydown", e => { if (e.key === "Enter") addCustomKeyword(); });
+    const boardInput = document.getElementById("input-add-board");
+    if (boardInput) boardInput.addEventListener("keydown", e => { if (e.key === "Enter") addCustomBoard(); });
 });
 
 // Called by theme.js when language changes
@@ -39,6 +50,14 @@ function onLanguageChange() {
 async function api(path, opts = {}) {
     const resp = await fetch(path, opts);
     return resp.json();
+}
+
+// ——— Exclude Dutch toggle ———
+
+function onDutchToggle() {
+    excludeDutch = document.getElementById("toggle-dutch").checked;
+    setCookie('excludeDutch', excludeDutch);
+    loadJobs();
 }
 
 // ——— Filter panels ———
@@ -58,19 +77,7 @@ function renderFilterLists() {
     const cities = Object.entries(filterData.cities || {}).filter(([c]) => c);
     renderListFromEntries("list-location", cities, "city");
 
-    // Company list
-    renderCompanyList();
-
-    // Posting type list (with dot indicators)
-    const ptContainer = document.getElementById("list-posting-type");
-    ptContainer.innerHTML = "";
-    for (const [ptype, count] of Object.entries(filterData.posting_types || {})) {
-        ptContainer.appendChild(createFilterRow(
-            t('type-' + ptype), count, "posting_type", ptype, `dot-${ptype}`
-        ));
-    }
-
-    // Source list
+    // Source list (job boards)
     renderList("list-source", filterData.sources || {}, "source");
 }
 
@@ -88,32 +95,6 @@ function renderListFromEntries(containerId, entries, filterKey) {
     for (const [label, count] of entries) {
         container.appendChild(createFilterRow(label, count, filterKey, label));
     }
-}
-
-function renderCompanyList() {
-    const container = document.getElementById("list-company");
-    container.innerHTML = "";
-    const companies = Object.entries(filterData.companies || {});
-    const showBtn = document.getElementById("btn-show-all-companies");
-
-    const limit = companiesExpanded ? companies.length : MAX_COMPANIES_VISIBLE;
-    companies.slice(0, limit).forEach(([company, count]) => {
-        container.appendChild(createFilterRow(company, count, "company", company));
-    });
-
-    if (companies.length > MAX_COMPANIES_VISIBLE) {
-        showBtn.style.display = "block";
-        showBtn.textContent = companiesExpanded
-            ? t('btn-show-less')
-            : t('btn-show-all', { n: companies.length });
-    } else {
-        showBtn.style.display = "none";
-    }
-}
-
-function showAllCompanies() {
-    companiesExpanded = !companiesExpanded;
-    renderCompanyList();
 }
 
 function createFilterRow(label, count, filterKey, filterValue, dotClass) {
@@ -160,14 +141,7 @@ function renderActiveFilters() {
     const filterLabels = {
         category: t('filter-label-category'),
         city: t('filter-label-location'),
-        company: t('filter-label-company'),
-        posting_type: t('filter-label-type'),
         source: t('filter-label-source'),
-    };
-    const typeLabels = {
-        direct: t('chip-direct'),
-        recruiter: t('chip-recruiter'),
-        job_board: t('chip-job_board'),
     };
 
     let hasActive = false;
@@ -176,8 +150,7 @@ function renderActiveFilters() {
             hasActive = true;
             const chip = document.createElement("span");
             chip.className = "active-chip";
-            const displayValue = key === "posting_type" ? (typeLabels[value] || value) : value;
-            chip.innerHTML = `${filterLabels[key]}: ${escHtml(displayValue)} <span class="active-chip-remove" data-key="${key}">&times;</span>`;
+            chip.innerHTML = `${filterLabels[key]}: ${escHtml(value)} <span class="active-chip-remove" data-key="${key}">&times;</span>`;
             chip.querySelector(".active-chip-remove").addEventListener("click", (e) => {
                 e.stopPropagation();
                 activeFilters[key] = null;
@@ -215,15 +188,13 @@ async function loadJobs(append = false) {
     const params = new URLSearchParams({ limit: PAGE_SIZE, offset: currentOffset, sort });
     if (search) params.set("search", search);
     if (onlyNew) params.set("only_new", "true");
+    if (excludeDutch) params.set("exclude_dutch", "true");
     if (activeFilters.category) params.set("category", activeFilters.category);
     if (activeFilters.city) params.set("city", activeFilters.city);
-    if (activeFilters.company) params.set("company", activeFilters.company);
-    if (activeFilters.posting_type) params.set("posting_type", activeFilters.posting_type);
     if (activeFilters.source) params.set("source", activeFilters.source);
 
     const data = await api(`/api/jobs?${params}`);
 
-    // If a newer loadJobs call was started while we were waiting, discard this result
     if (thisGen !== loadGeneration) return;
 
     currentTotal = data.total;
@@ -260,6 +231,36 @@ function mapsUrl(location) {
     if (!location) return null;
     const dest = encodeURIComponent(location);
     return `https://www.google.com/maps/dir/${HOME_ENCODED}/${dest}?travelmode=transit`;
+}
+
+// ——— Score breakdown popup ———
+
+function showScorePopup(job, event) {
+    event.stopPropagation();
+    const popup = document.getElementById("score-popup");
+    const overlay = document.getElementById("score-popup-overlay");
+    const body = document.getElementById("score-popup-body");
+
+    const breakdown = job.score_breakdown;
+    if (!breakdown || !breakdown.components) return;
+
+    let html = '<ul class="score-breakdown-list">';
+    for (const comp of breakdown.components) {
+        const sign = comp.points >= 0 ? "+" : "";
+        const cls = comp.points >= 0 ? "positive" : "negative";
+        html += `<li class="${cls}"><span class="sbl-label">${escHtml(comp.label)}</span><span class="sbl-pts">${sign}${comp.points}pts</span></li>`;
+    }
+    html += '</ul>';
+    html += `<div class="score-breakdown-total"><span>${escHtml(t('score-total'))}</span><span>${breakdown.total}pts</span></div>`;
+
+    body.innerHTML = html;
+    popup.style.display = "block";
+    overlay.style.display = "block";
+}
+
+function closeScorePopup() {
+    document.getElementById("score-popup").style.display = "none";
+    document.getElementById("score-popup-overlay").style.display = "none";
 }
 
 // ——— Create a job card ———
@@ -327,7 +328,7 @@ function createJobCard(job) {
                onclick="event.stopPropagation()">
                 ${escHtml(job.title)}
             </a>
-            <span class="job-score ${scoreClass}">${job.score}pts</span>
+            <span class="job-score ${scoreClass}" data-job-id="${job.id}">${job.score}pts</span>
         </div>
         <div class="job-meta">
             ${job.company ? `<span>\uD83C\uDFE2 ${escHtml(job.company)}</span>` : ""}
@@ -356,8 +357,16 @@ function createJobCard(job) {
         <div class="job-fit" id="fit-${job.id}"></div>
     `;
 
+    // Score badge click → score breakdown popup
+    const scoreBadge = card.querySelector(".job-score");
+    scoreBadge.addEventListener("click", (e) => {
+        showScorePopup(job, e);
+    });
+    scoreBadge.style.cursor = "pointer";
+
+    // Card body click → fit analysis (excluding links, buttons, score badge)
     card.addEventListener("click", (e) => {
-        if (e.target.closest("a, button")) return;
+        if (e.target.closest("a, button, .job-score")) return;
         toggleFit(job);
     });
 
@@ -410,6 +419,86 @@ async function saveJob(jobId) {
         btn.classList.add("saved");
         btn.textContent = data.status === "created" ? t('btn-saved') : t('btn-already-saved');
     }
+}
+
+// ——— Custom keywords ———
+
+async function loadCustomKeywords() {
+    const data = await api("/api/custom-keywords");
+    renderKeywordTags(data.keywords || []);
+}
+
+function renderKeywordTags(keywords) {
+    const container = document.getElementById("keywords-tags");
+    container.innerHTML = "";
+    for (const kw of keywords) {
+        const tag = document.createElement("span");
+        tag.className = "keyword-tag";
+        tag.innerHTML = `${escHtml(kw.keyword)} <span class="keyword-tag-remove" data-id="${kw.id}">&times;</span>`;
+        tag.querySelector(".keyword-tag-remove").addEventListener("click", () => removeKeyword(kw.id));
+        container.appendChild(tag);
+    }
+}
+
+async function addCustomKeyword() {
+    const input = document.getElementById("input-keyword");
+    const keyword = input.value.trim();
+    if (!keyword) return;
+    await api("/api/custom-keywords", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ keyword }),
+    });
+    input.value = "";
+    loadCustomKeywords();
+}
+
+async function removeKeyword(id) {
+    await api(`/api/custom-keywords/${id}`, { method: "DELETE" });
+    loadCustomKeywords();
+}
+
+// ——— Custom job boards ———
+
+async function loadCustomBoards() {
+    const data = await api("/api/custom-job-boards");
+    renderCustomBoards(data.boards || []);
+}
+
+function renderCustomBoards(boards) {
+    const container = document.getElementById("list-custom-boards");
+    container.innerHTML = "";
+    for (const board of boards) {
+        const li = document.createElement("li");
+        li.className = "filter-row custom-board-row";
+        li.innerHTML = `
+            <span class="filter-row-label">${escHtml(board.name)}</span>
+            <span class="custom-board-remove" data-id="${board.id}">&times;</span>
+        `;
+        li.querySelector(".custom-board-remove").addEventListener("click", (e) => {
+            e.stopPropagation();
+            removeCustomBoard(board.id);
+        });
+        container.appendChild(li);
+    }
+}
+
+async function addCustomBoard() {
+    const input = document.getElementById("input-add-board");
+    const name = input.value.trim();
+    if (!name) return;
+    await api("/api/custom-job-boards", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ name, url: name }),
+    });
+    input.value = "";
+    loadCustomBoards();
+}
+
+async function removeCustomBoard(id) {
+    await api(`/api/custom-job-boards/${id}`, { method: "DELETE" });
+    loadCustomBoards();
 }
 
 // ——— Search ———

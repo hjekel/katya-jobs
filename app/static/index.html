@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Katya's JobFinder</title>
     <link rel="icon" type="image/svg+xml" href="/static/favicon.svg">
-    <link rel="stylesheet" href="/static/style.css?v=3">
+    <link rel="stylesheet" href="/static/style.css?v=4">
 </head>
 <body>
     <header>
@@ -14,6 +14,7 @@
             <nav class="header-nav">
                 <a href="/" class="nav-link active" data-i18n="nav-jobs">Jobs</a>
                 <a href="/applications" class="nav-link" data-i18n="nav-applications">My Applications</a>
+                <a href="/feedback" class="nav-link" data-i18n="nav-feedback">Feedback</a>
             </nav>
         </div>
         <div class="header-controls">
@@ -48,8 +49,8 @@
             <input type="text" id="search-input" data-i18n-placeholder="search-placeholder" placeholder="Search jobs by title, company, or keyword..." oninput="debounceSearch()">
         </div>
 
-        <!-- Filter Panels (2x2 on mobile, 4-col on desktop) -->
-        <div class="filter-panels">
+        <!-- Filter Panels (3 columns: Category, Location, Job Boards) -->
+        <div class="filter-panels three-col">
             <div class="filter-panel" id="panel-category">
                 <div class="panel-header" onclick="togglePanel(this)">
                     <h3 data-i18n="filter-category">Category</h3>
@@ -70,29 +71,29 @@
                 </div>
             </div>
 
-            <div class="filter-panel" id="panel-company">
+            <div class="filter-panel" id="panel-jobboards">
                 <div class="panel-header" onclick="togglePanel(this)">
-                    <h3 data-i18n="filter-company">Company</h3>
+                    <h3 data-i18n="filter-jobboards">Job Boards</h3>
                     <span class="panel-toggle">&#9660;</span>
                 </div>
                 <div class="panel-body">
-                    <ul class="filter-list" id="list-company"></ul>
-                </div>
-                <button class="btn-show-all" id="btn-show-all-companies" style="display:none"
-                        onclick="showAllCompanies()">Show all</button>
-            </div>
-
-            <div class="filter-panel" id="panel-source">
-                <div class="panel-header" onclick="togglePanel(this)">
-                    <h3 data-i18n="filter-source">Source</h3>
-                    <span class="panel-toggle">&#9660;</span>
-                </div>
-                <div class="panel-body">
-                    <ul class="filter-list" id="list-posting-type"></ul>
-                    <div class="filter-list-divider"></div>
+                    <div class="panel-input-row">
+                        <input type="text" id="input-add-board" data-i18n-placeholder="add-board-placeholder" placeholder="Add a job board..." class="panel-input">
+                        <button class="panel-input-btn" onclick="addCustomBoard()">+</button>
+                    </div>
+                    <ul class="filter-list" id="list-custom-boards"></ul>
                     <ul class="filter-list" id="list-source"></ul>
                 </div>
             </div>
+        </div>
+
+        <!-- Custom Keywords -->
+        <div class="keywords-section">
+            <div class="keywords-input-row">
+                <input type="text" id="input-keyword" data-i18n-placeholder="add-keyword-placeholder" placeholder="Add search keyword..." class="keywords-input">
+                <button class="keywords-add-btn" onclick="addCustomKeyword()" data-i18n="btn-add-keyword">Add</button>
+            </div>
+            <div class="keywords-tags" id="keywords-tags"></div>
         </div>
 
         <!-- Active Filters Bar -->
@@ -105,6 +106,11 @@
         <div class="controls-row">
             <div class="results-count" id="results-count">Showing 0 jobs</div>
             <div class="controls-right">
+                <label class="toggle-switch-label">
+                    <input type="checkbox" id="toggle-dutch" checked onchange="onDutchToggle()">
+                    <span class="toggle-switch-slider"></span>
+                    <span data-i18n="toggle-dutch">Hide jobs requiring Dutch</span>
+                </label>
                 <label class="toggle-new">
                     <input type="checkbox" id="toggle-new" onchange="loadJobs()"> <span data-i18n="toggle-new">Show only new</span>
                 </label>
@@ -132,7 +138,17 @@
         </div>
     </main>
 
-    <script src="/static/theme.js?v=3"></script>
-    <script src="/static/app.js?v=3"></script>
+    <!-- Score breakdown popup -->
+    <div id="score-popup" class="score-popup" style="display:none">
+        <div class="score-popup-header">
+            <span data-i18n="score-breakdown-title">Score Breakdown</span>
+            <button class="score-popup-close" onclick="closeScorePopup()">&times;</button>
+        </div>
+        <div class="score-popup-body" id="score-popup-body"></div>
+    </div>
+    <div id="score-popup-overlay" class="score-popup-overlay" style="display:none" onclick="closeScorePopup()"></div>
+
+    <script src="/static/theme.js?v=4"></script>
+    <script src="/static/app.js?v=4"></script>
 </body>
 </html>

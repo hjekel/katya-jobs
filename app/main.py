@@ -15,8 +15,14 @@ from app.database import (
     get_jobs, get_job_by_id, get_job_count, get_stats, get_filter_counts,
     hide_job, init_db, mark_all_seen,
     save_application, update_application, remove_application, get_applications,
+    save_feedback, get_all_feedback,
+    add_custom_keyword, get_custom_keywords, delete_custom_keyword,
+    add_custom_job_board, get_custom_job_boards, delete_custom_job_board,
 )
-from app.scorer import generate_fit_analysis, generate_cover_letter, get_commute_info, compute_posting_age
+from app.scorer import (
+    generate_fit_analysis, generate_cover_letter, get_commute_info,
+    compute_posting_age, compute_score_breakdown,
+)
 from app.scrapers import scrape_all
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s")
@@ -48,6 +54,11 @@ async def applications_page():
     return FileResponse("app/static/applications.html")
 
 
+@app.get("/feedback")
+async def feedback_page():
+    return FileResponse("app/static/feedback.html")
+
+
 # ---- Jobs API ----
 
 @app.get("/api/jobs")
@@ -63,23 +74,31 @@ async def api_jobs(
     sort: str = Query("newest"),
     limit: int = Query(200, le=500),
     offset: int = Query(0, ge=0),
+    exclude_dutch: bool = Query(False),
 ):
     jobs = get_jobs(
         source=source, search=search, only_new=only_new,
         min_salary=min_salary, category=category, city=city,
         posting_type=posting_type, company=company, sort=sort,
-        limit=limit, offset=offset,
+        limit=limit, offset=offset, exclude_dutch=exclude_dutch,
     )
     total = get_job_count(
         source=source, search=search, only_new=only_new,
         min_salary=min_salary, category=category, city=city,
         posting_type=posting_type, company=company,
+        exclude_dutch=exclude_dutch,
     )
-    # Enrich each job with posting age
+    # Enrich each job with posting age and score breakdown
     for job in jobs:
         age = compute_posting_age(job.get("date_posted"), job.get("date_scraped"))
         job["posting_age_text"] = age["text"]
         job["posting_age_color"] = age["color"]
+        job["score_breakdown"] = compute_score_breakdown(
+            job.get("title", ""),
+            job.get("company", ""),
+            job.get("location", ""),
+            job.get("snippet", ""),
+        )
     return {"jobs": jobs, "total": total}
 
 
@@ -108,7 +127,10 @@ async def api_scrape():
         global _last_scrape, _scraping
         _scraping = True
         try:
-            results = await scrape_all()
+            # Include custom keywords in the scrape
+            keywords = get_custom_keywords()
+            extra = [kw["keyword"] for kw in keywords] if keywords else []
+            results = await scrape_all(extra_queries=extra)
             _last_scrape = datetime.now(timezone.utc).isoformat()
             return results
         finally:
@@ -196,4 +218,70 @@ async def api_update_application(job_id: int, body: ApplicationUpdate):
 @app.delete("/api/applications/{job_id}")
 async def api_remove_application(job_id: int):
     remove_application(job_id)
+    return {"status": "ok"}
+
+
+# ---- Feedback API ----
+
+class FeedbackCreate(BaseModel):
+    improve: str = ""
+    job_boards: str = ""
+    suggestions: str = ""
+
+
+@app.post("/api/feedback")
+async def api_create_feedback(body: FeedbackCreate):
+    fid = save_feedback(body.improve, body.job_boards, body.suggestions)
+    return {"status": "created", "id": fid}
+
+
+@app.get("/api/feedback")
+async def api_get_feedback():
+    return {"feedback": get_all_feedback()}
+
+
+# ---- Custom keywords API ----
+
+class KeywordCreate(BaseModel):
+    keyword: str
+
+
+@app.post("/api/custom-keywords")
+async def api_add_keyword(body: KeywordCreate):
+    created = add_custom_keyword(body.keyword)
+    return {"status": "created" if created else "exists"}
+
+
+@app.get("/api/custom-keywords")
+async def api_get_keywords():
+    return {"keywords": get_custom_keywords()}
+
+
+@app.delete("/api/custom-keywords/{keyword_id}")
+async def api_delete_keyword(keyword_id: int):
+    delete_custom_keyword(keyword_id)
+    return {"status": "ok"}
+
+
+# ---- Custom job boards API ----
+
+class JobBoardCreate(BaseModel):
+    name: str
+    url: str = ""
+
+
+@app.post("/api/custom-job-boards")
+async def api_add_job_board(body: JobBoardCreate):
+    created = add_custom_job_board(body.name, body.url)
+    return {"status": "created" if created else "exists"}
+
+
+@app.get("/api/custom-job-boards")
+async def api_get_job_boards():
+    return {"boards": get_custom_job_boards()}
+
+
+@app.delete("/api/custom-job-boards/{board_id}")
+async def api_delete_job_board(board_id: int):
+    delete_custom_job_board(board_id)
     return {"status": "ok"}

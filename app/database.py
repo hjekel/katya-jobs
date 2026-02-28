@@ -102,6 +102,36 @@ def init_db():
         conn.execute("CREATE INDEX IF NOT EXISTS idx_jobs_city ON jobs(city)")
         conn.execute("CREATE INDEX IF NOT EXISTS idx_jobs_posting_type ON jobs(posting_type)")
 
+        # Feedback table
+        conn.execute("""
+            CREATE TABLE IF NOT EXISTS feedback (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                improve_text TEXT,
+                job_boards_text TEXT,
+                suggestions_text TEXT,
+                created_at TEXT NOT NULL
+            )
+        """)
+
+        # Custom keywords table
+        conn.execute("""
+            CREATE TABLE IF NOT EXISTS custom_keywords (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                keyword TEXT NOT NULL UNIQUE,
+                created_at TEXT NOT NULL
+            )
+        """)
+
+        # Custom job boards table
+        conn.execute("""
+            CREATE TABLE IF NOT EXISTS custom_job_boards (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                name TEXT NOT NULL,
+                url TEXT,
+                created_at TEXT NOT NULL
+            )
+        """)
+
 
 def upsert_job(
     external_id: str,
@@ -139,6 +169,19 @@ def upsert_job(
             return False
 
 
+def _add_dutch_exclusion(conditions: list, params: list):
+    """Add SQL conditions to exclude jobs with Dutch-language indicators."""
+    dutch_terms = [
+        "Nederlands", "Dutch required", "Nederlandse taal",
+        "NL spreken", "beheersing van de Nederlandse taal",
+    ]
+    dutch_or_parts = []
+    for term in dutch_terms:
+        dutch_or_parts.append("(COALESCE(title,'') || ' ' || COALESCE(snippet,'') LIKE ?)")
+        params.append(f"%{term}%")
+    conditions.append(f"NOT ({' OR '.join(dutch_or_parts)})")
+
+
 def get_jobs(
     source: Optional[str] = None,
     search: Optional[str] = None,
@@ -151,6 +194,7 @@ def get_jobs(
     sort: str = "newest",
     limit: int = 200,
     offset: int = 0,
+    exclude_dutch: bool = False,
 ) -> list[dict]:
     conditions = ["is_hidden = 0"]
     params: list = []
@@ -179,6 +223,8 @@ def get_jobs(
     if company:
         conditions.append("company = ?")
         params.append(company)
+    if exclude_dutch:
+        _add_dutch_exclusion(conditions, params)
 
     where = " AND ".join(conditions)
 
@@ -206,6 +252,7 @@ def get_job_count(
     city: Optional[str] = None,
     posting_type: Optional[str] = None,
     company: Optional[str] = None,
+    exclude_dutch: bool = False,
 ) -> int:
     conditions = ["is_hidden = 0"]
     params: list = []
@@ -233,6 +280,8 @@ def get_job_count(
     if company:
         conditions.append("company = ?")
         params.append(company)
+    if exclude_dutch:
+        _add_dutch_exclusion(conditions, params)
     where = " AND ".join(conditions)
     with get_db() as conn:
         row = conn.execute(f"SELECT COUNT(*) as cnt FROM jobs WHERE {where}", params).fetchone()
@@ -352,3 +401,93 @@ def get_applications() -> list[dict]:
                 a.date_saved DESC
         """).fetchall()
         return [dict(row) for row in rows]
+
+
+# --------------------------------------------------------------------------
+# Feedback
+# --------------------------------------------------------------------------
+
+def save_feedback(improve: str = "", job_boards: str = "", suggestions: str = "") -> int:
+    """Save a feedback entry. Returns the new feedback ID."""
+    now = datetime.now(timezone.utc).isoformat()
+    with get_db() as conn:
+        cur = conn.execute(
+            "INSERT INTO feedback (improve_text, job_boards_text, suggestions_text, created_at) VALUES (?, ?, ?, ?)",
+            (improve, job_boards, suggestions, now),
+        )
+        return cur.lastrowid
+
+
+def get_all_feedback() -> list[dict]:
+    """Get all feedback entries, newest first."""
+    with get_db() as conn:
+        rows = conn.execute(
+            "SELECT * FROM feedback ORDER BY created_at DESC"
+        ).fetchall()
+        return [dict(row) for row in rows]
+
+
+# --------------------------------------------------------------------------
+# Custom keywords
+# --------------------------------------------------------------------------
+
+def add_custom_keyword(keyword: str) -> bool:
+    """Add a custom search keyword. Returns True if newly added."""
+    now = datetime.now(timezone.utc).isoformat()
+    with get_db() as conn:
+        try:
+            conn.execute(
+                "INSERT INTO custom_keywords (keyword, created_at) VALUES (?, ?)",
+                (keyword.strip(), now),
+            )
+            return True
+        except sqlite3.IntegrityError:
+            return False
+
+
+def get_custom_keywords() -> list[dict]:
+    """Get all custom keywords."""
+    with get_db() as conn:
+        rows = conn.execute(
+            "SELECT * FROM custom_keywords ORDER BY created_at DESC"
+        ).fetchall()
+        return [dict(row) for row in rows]
+
+
+def delete_custom_keyword(keyword_id: int):
+    """Delete a custom keyword by ID."""
+    with get_db() as conn:
+        conn.execute("DELETE FROM custom_keywords WHERE id = ?", (keyword_id,))
+
+
+# --------------------------------------------------------------------------
+# Custom job boards
+# --------------------------------------------------------------------------
+
+def add_custom_job_board(name: str, url: str = "") -> bool:
+    """Add a custom job board. Returns True if newly added."""
+    now = datetime.now(timezone.utc).isoformat()
+    with get_db() as conn:
+        try:
+            conn.execute(
+                "INSERT INTO custom_job_boards (name, url, created_at) VALUES (?, ?, ?)",
+                (name.strip(), url.strip(), now),
+            )
+            return True
+        except sqlite3.IntegrityError:
+            return False
+
+
+def get_custom_job_boards() -> list[dict]:
+    """Get all custom job boards."""
+    with get_db() as conn:
+        rows = conn.execute(
+            "SELECT * FROM custom_job_boards ORDER BY created_at DESC"
+        ).fetchall()
+        return [dict(row) for row in rows]
+
+
+def delete_custom_job_board(board_id: int):
+    """Delete a custom job board by ID."""
+    with get_db() as conn:
+        conn.execute("DELETE FROM custom_job_boards WHERE id = ?", (board_id,))

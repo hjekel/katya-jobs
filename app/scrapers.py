@@ -69,7 +69,7 @@ def _passes_filter(title: str, snippet: str = "") -> bool:
 # Indeed NL
 # ---------------------------------------------------------------------------
 
-async def scrape_indeed(client: httpx.AsyncClient) -> list[RawJob]:
+async def scrape_indeed(client: httpx.AsyncClient, extra_queries: list[str] | None = None) -> list[RawJob]:
     """Scrape Indeed Netherlands for English-speaking jobs near Haarlem."""
     jobs: list[RawJob] = []
     queries_to_use = [
@@ -83,6 +83,8 @@ async def scrape_indeed(client: httpx.AsyncClient) -> list[RawJob]:
         "customer service english",
         "data entry english",
     ]
+    if extra_queries:
+        queries_to_use.extend(extra_queries)
 
     for query in queries_to_use:
         for location in ["Haarlem", "Amsterdam", "Hoofddorp"]:
@@ -496,7 +498,7 @@ def _dedupe(jobs: list[RawJob]) -> list[RawJob]:
     return unique
 
 
-async def scrape_all() -> dict[str, int]:
+async def scrape_all(extra_queries: list[str] | None = None) -> dict[str, int]:
     """Run all scrapers and return counts of new jobs per source."""
     from app.database import upsert_job
 
@@ -515,7 +517,10 @@ async def scrape_all() -> dict[str, int]:
         for name, scraper_fn in scrapers.items():
             try:
                 logger.info("Scraping %s...", name)
-                jobs = await scraper_fn(client)
+                if name == "indeed" and extra_queries:
+                    jobs = await scraper_fn(client, extra_queries=extra_queries)
+                else:
+                    jobs = await scraper_fn(client)
                 new_count = 0
                 for job in jobs:
                     sal = job.salary

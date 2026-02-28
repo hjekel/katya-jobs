@@ -1,0 +1,65 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Katya's JobFinder — Feedback</title>
+    <link rel="icon" type="image/svg+xml" href="/static/favicon.svg">
+    <link rel="stylesheet" href="/static/style.css?v=4">
+</head>
+<body>
+    <header>
+        <div class="header-content">
+            <h1><img src="/static/favicon.svg" alt="" class="header-icon"><span data-i18n="site-title">Katya's JobFinder</span></h1>
+            <nav class="header-nav">
+                <a href="/" class="nav-link" data-i18n="nav-jobs">Jobs</a>
+                <a href="/applications" class="nav-link" data-i18n="nav-applications">My Applications</a>
+                <a href="/feedback" class="nav-link active" data-i18n="nav-feedback">Feedback</a>
+            </nav>
+        </div>
+        <div class="header-controls">
+            <div class="lang-switcher">
+                <button class="lang-btn" data-lang="en">EN</button>
+                <button class="lang-btn" data-lang="ru">RU</button>
+                <button class="lang-btn" data-lang="ua">UA</button>
+            </div>
+            <button class="theme-toggle" id="theme-toggle" title="Toggle dark mode">&#127769;</button>
+            <button class="ukraine-toggle" id="ukraine-toggle" title="Ukraine mode" style="display:none">&#127482;&#127462;</button>
+        </div>
+    </header>
+
+    <main class="feedback-main">
+        <h2 data-i18n="feedback-title">Feedback</h2>
+        <p class="feedback-subtitle" data-i18n="feedback-subtitle">Help us improve Katya's JobFinder</p>
+
+        <form id="feedback-form" class="feedback-form" onsubmit="submitFeedback(event)">
+            <div class="feedback-field">
+                <label for="fb-improve" data-i18n="feedback-improve-label">What would you like to improve?</label>
+                <textarea id="fb-improve" rows="3" data-i18n-placeholder="feedback-improve-placeholder" placeholder="Tell us what could work better..."></textarea>
+            </div>
+            <div class="feedback-field">
+                <label for="fb-boards" data-i18n="feedback-boards-label">What job boards or websites should we add?</label>
+                <textarea id="fb-boards" rows="3" data-i18n-placeholder="feedback-boards-placeholder" placeholder="e.g. Glassdoor, Nationale Vacaturebank..."></textarea>
+            </div>
+            <div class="feedback-field">
+                <label for="fb-suggestions" data-i18n="feedback-suggestions-label">Any other suggestions?</label>
+                <textarea id="fb-suggestions" rows="3" data-i18n-placeholder="feedback-suggestions-placeholder" placeholder="Anything else you'd like to tell us..."></textarea>
+            </div>
+            <button type="submit" class="feedback-submit" data-i18n="feedback-submit">Send Feedback</button>
+        </form>
+
+        <div id="feedback-success" class="feedback-success" style="display:none">
+            <span data-i18n="feedback-thanks">Thank you for your feedback!</span>
+        </div>
+
+        <h3 class="feedback-history-title" data-i18n="feedback-history-title">Previous Feedback</h3>
+        <div id="feedback-list" class="feedback-list"></div>
+        <div id="feedback-empty" class="feedback-empty" style="display:none">
+            <p data-i18n="feedback-empty">No feedback submitted yet.</p>
+        </div>
+    </main>
+
+    <script src="/static/theme.js?v=4"></script>
+    <script src="/static/feedback.js?v=4"></script>
+</body>
+</html>

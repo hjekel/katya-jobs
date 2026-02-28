@@ -385,6 +385,89 @@ def compute_score(title: str, company: str = "", location: str = "", description
     return max(0, min(score, 150))
 
 
+def compute_score_breakdown(title: str, company: str = "", location: str = "", description: str = "") -> dict:
+    """Compute score with detailed per-component breakdown."""
+    title_lower = (title or "").lower()
+    desc_lower = (description or "").lower()
+    combined = f"{title_lower} {desc_lower}"
+
+    components = []
+    total = 0
+
+    # Role match
+    best_role_score = 0
+    best_role_keyword = ""
+    for keyword, points in ROLE_SCORES.items():
+        if keyword in combined and points > best_role_score:
+            best_role_score = points
+            best_role_keyword = keyword
+
+    if best_role_score > 0:
+        components.append({"label": f"Role match ({best_role_keyword})", "points": best_role_score})
+        total += best_role_score
+    else:
+        components.append({"label": "Base score", "points": 20})
+        total = 20
+
+    # Seniority penalty
+    for keyword, penalty in SENIORITY_PENALTY.items():
+        if keyword in title_lower:
+            components.append({"label": f"Seniority ({keyword})", "points": penalty})
+            total += penalty
+            break
+
+    # Seniority bonus
+    for keyword, bonus in SENIORITY_BONUS.items():
+        if keyword in title_lower or keyword in desc_lower:
+            components.append({"label": f"Seniority ({keyword})", "points": bonus})
+            total += bonus
+            break
+
+    # English bonus
+    english_signals = ["english", "english-speaking", "international", "expat", "no dutch"]
+    if any(signal in combined for signal in english_signals):
+        components.append({"label": "English-friendly", "points": ENGLISH_BONUS})
+        total += ENGLISH_BONUS
+
+    # English environment bonus
+    if any(signal in combined for signal in ENGLISH_ENV_SIGNALS):
+        components.append({"label": "English work environment", "points": ENGLISH_ENV_BONUS})
+        total += ENGLISH_ENV_BONUS
+
+    # Language asset bonus
+    if any(lang in combined for lang in ["ukrainian", "russian", "oekra\u00efens", "russisch"]):
+        components.append({"label": "Ukrainian/Russian asset", "points": LANGUAGE_ASSET_BONUS})
+        total += LANGUAGE_ASSET_BONUS
+
+    # Temp/contract bonus
+    temp_signals = ["temporary", "temp ", "contract", "freelance", "interim", "fixed-term", "fixed term"]
+    if any(signal in combined for signal in temp_signals):
+        components.append({"label": "Temp/contract", "points": TEMP_CONTRACT_BONUS})
+        total += TEMP_CONTRACT_BONUS
+
+    # Location bonus
+    location_lower = (location or "").lower()
+    for city, bonus in CITY_BONUS.items():
+        if city.lower() in location_lower:
+            components.append({"label": f"Location ({city})", "points": bonus})
+            total += bonus
+            break
+
+    # Other bonuses
+    if "refugee" in combined or "newcomer" in combined or "status holder" in combined:
+        components.append({"label": "Newcomer-friendly", "points": 10})
+        total += 10
+    if "part-time" in combined or "part time" in combined:
+        components.append({"label": "Part-time", "points": 3})
+        total += 3
+    if "zara" in combined or "inditex" in combined:
+        components.append({"label": "ZARA/Inditex", "points": 5})
+        total += 5
+
+    total = max(0, min(total, 150))
+    return {"components": components, "total": total}
+
+
 # --------------------------------------------------------------------------
 # Commute info
 # --------------------------------------------------------------------------
