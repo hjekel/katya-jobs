@@ -1,0 +1,74 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Katya Jobs — Job Finder</title>
+    <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+    <header>
+        <div class="header-content">
+            <h1>Katya Jobs</h1>
+            <nav class="header-nav">
+                <a href="/" class="nav-link active">Jobs</a>
+                <a href="/applications" class="nav-link">My Applications</a>
+            </nav>
+        </div>
+        <div class="header-actions">
+            <button id="btn-scrape" onclick="startScrape()">
+                <span class="btn-icon">&circlearrowleft;</span> Scan for Jobs
+            </button>
+            <div id="stats-bar">
+                <span id="stat-total">0 jobs</span>
+                <span id="stat-new" class="badge-new" style="display:none">0 new</span>
+            </div>
+        </div>
+    </header>
+
+    <main>
+        <div class="controls">
+            <input type="text" id="search-input" placeholder="Search jobs..." oninput="debounceSearch()">
+            <div class="filters">
+                <button class="filter-btn active" data-source="" onclick="setSource(this, '')">All</button>
+                <button class="filter-btn" data-source="indeed" onclick="setSource(this, 'indeed')">Indeed</button>
+                <button class="filter-btn" data-source="iamexpat" onclick="setSource(this, 'iamexpat')">IamExpat</button>
+                <button class="filter-btn" data-source="undutchables" onclick="setSource(this, 'undutchables')">Undutchables</button>
+                <button class="filter-btn" data-source="linkedin" onclick="setSource(this, 'linkedin')">LinkedIn</button>
+                <button class="filter-btn" data-source="adams" onclick="setSource(this, 'adams')">Adams</button>
+                <button class="filter-btn" data-source="welcometonl" onclick="setSource(this, 'welcometonl')">Welcome to NL</button>
+            </div>
+            <div class="filter-row">
+                <label class="toggle-new">
+                    <input type="checkbox" id="toggle-new" onchange="loadJobs()"> Show only new
+                </label>
+                <div class="salary-filter">
+                    <label for="min-salary">Min salary:</label>
+                    <input type="number" id="min-salary" value="0" min="0" max="10000" step="500"
+                           onchange="loadJobs()">
+                    <span class="salary-hint">&euro;/month bruto (0 = any)</span>
+                </div>
+            </div>
+        </div>
+
+        <div id="status-bar" style="display:none">
+            <div class="spinner"></div>
+            <span id="status-text">Scanning job boards...</span>
+        </div>
+
+        <div id="jobs-container"></div>
+
+        <div id="load-more-container" style="display:none">
+            <button id="btn-load-more" onclick="loadMore()">Load more</button>
+        </div>
+
+        <div id="empty-state" style="display:none">
+            <div class="empty-icon">&#128203;</div>
+            <h2>No jobs yet</h2>
+            <p>Click <strong>Scan for Jobs</strong> to search all job boards.</p>
+        </div>
+    </main>
+
+    <script src="/static/app.js"></script>
+</body>
+</html>

@@ -1,0 +1,133 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Katya Jobs — My Applications</title>
+    <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+    <header>
+        <div class="header-content">
+            <h1>Katya Jobs</h1>
+            <nav class="header-nav">
+                <a href="/" class="nav-link">Jobs</a>
+                <a href="/applications" class="nav-link active">My Applications</a>
+            </nav>
+        </div>
+    </header>
+
+    <main class="kanban-main">
+        <div class="kanban-board" id="kanban-board">
+            <div class="kanban-column" data-status="interested">
+                <div class="kanban-column-header">
+                    <h2>Interested</h2>
+                    <span class="kanban-count" id="count-interested">0</span>
+                </div>
+                <div class="kanban-cards" id="col-interested"
+                     ondrop="kanbanDrop(event, 'interested')"
+                     ondragover="event.preventDefault()"
+                     ondragenter="this.classList.add('drag-over')"
+                     ondragleave="this.classList.remove('drag-over')">
+                </div>
+            </div>
+            <div class="kanban-column" data-status="applied">
+                <div class="kanban-column-header">
+                    <h2>Applied</h2>
+                    <span class="kanban-count" id="count-applied">0</span>
+                </div>
+                <div class="kanban-cards" id="col-applied"
+                     ondrop="kanbanDrop(event, 'applied')"
+                     ondragover="event.preventDefault()"
+                     ondragenter="this.classList.add('drag-over')"
+                     ondragleave="this.classList.remove('drag-over')">
+                </div>
+            </div>
+            <div class="kanban-column" data-status="interview">
+                <div class="kanban-column-header">
+                    <h2>Interview</h2>
+                    <span class="kanban-count" id="count-interview">0</span>
+                </div>
+                <div class="kanban-cards" id="col-interview"
+                     ondrop="kanbanDrop(event, 'interview')"
+                     ondragover="event.preventDefault()"
+                     ondragenter="this.classList.add('drag-over')"
+                     ondragleave="this.classList.remove('drag-over')">
+                </div>
+            </div>
+            <div class="kanban-column" data-status="offer">
+                <div class="kanban-column-header">
+                    <h2>Offer</h2>
+                    <span class="kanban-count" id="count-offer">0</span>
+                </div>
+                <div class="kanban-cards" id="col-offer"
+                     ondrop="kanbanDrop(event, 'offer')"
+                     ondragover="event.preventDefault()"
+                     ondragenter="this.classList.add('drag-over')"
+                     ondragleave="this.classList.remove('drag-over')">
+                </div>
+            </div>
+            <div class="kanban-column kanban-rejected" data-status="rejected">
+                <div class="kanban-column-header">
+                    <h2>Rejected</h2>
+                    <span class="kanban-count" id="count-rejected">0</span>
+                </div>
+                <div class="kanban-cards" id="col-rejected"
+                     ondrop="kanbanDrop(event, 'rejected')"
+                     ondragover="event.preventDefault()"
+                     ondragenter="this.classList.add('drag-over')"
+                     ondragleave="this.classList.remove('drag-over')">
+                </div>
+            </div>
+        </div>
+
+        <div id="kanban-empty" style="display:none">
+            <div class="empty-icon">&#128203;</div>
+            <h2>No saved applications</h2>
+            <p>Go to <a href="/">Jobs</a> and click <strong>Save</strong> on jobs you're interested in.</p>
+        </div>
+    </main>
+
+    <!-- Cover letter modal -->
+    <div class="modal-overlay" id="modal-overlay" style="display:none" onclick="closeModal()">
+        <div class="modal" onclick="event.stopPropagation()">
+            <div class="modal-header">
+                <h2 id="modal-title">Cover Letter</h2>
+                <button class="modal-close" onclick="closeModal()">&times;</button>
+            </div>
+            <div class="modal-body">
+                <pre id="modal-letter" class="cover-letter-text"></pre>
+            </div>
+            <div class="modal-footer">
+                <button class="btn-copy" onclick="copyLetter()">Copy to clipboard</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Notes modal -->
+    <div class="modal-overlay" id="notes-overlay" style="display:none" onclick="closeNotesModal()">
+        <div class="modal modal-small" onclick="event.stopPropagation()">
+            <div class="modal-header">
+                <h2>Edit Notes</h2>
+                <button class="modal-close" onclick="closeNotesModal()">&times;</button>
+            </div>
+            <div class="modal-body">
+                <textarea id="notes-text" rows="5" placeholder="Add your notes..."></textarea>
+                <div class="notes-fields">
+                    <label>Date applied:
+                        <input type="date" id="notes-date-applied">
+                    </label>
+                    <label>Reminder date:
+                        <input type="date" id="notes-reminder">
+                    </label>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn-copy" onclick="saveNotes()">Save</button>
+            </div>
+        </div>
+    </div>
+
+    <script src="/static/applications.js"></script>
+</body>
+</html>
