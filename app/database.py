@@ -174,6 +174,7 @@ def _add_dutch_exclusion(conditions: list, params: list):
     dutch_terms = [
         "Nederlands", "Dutch required", "Nederlandse taal",
         "NL spreken", "beheersing van de Nederlandse taal",
+        "Dutch language", "vloeiend Nederlands", "moedertaal Nederlands",
     ]
     dutch_or_parts = []
     for term in dutch_terms:
@@ -232,6 +233,8 @@ def get_jobs(
         order = "date_scraped DESC, date_posted DESC"
     elif sort == "score":
         order = "score DESC, date_scraped DESC"
+    elif sort == "oldest":
+        order = "date_scraped ASC, date_posted ASC"
     else:
         order = "date_scraped DESC"
 
@@ -304,6 +307,16 @@ def hide_job(job_id: int):
         conn.execute("UPDATE jobs SET is_hidden = 1 WHERE id = ?", (job_id,))
 
 
+ALL_SOURCES = {
+    "linkedin": "LinkedIn",
+    "indeed": "Indeed NL",
+    "iamexpat": "IamExpat",
+    "undutchables": "Undutchables",
+    "adams": "Adams Recruitment",
+    "welcometonl": "Welcome to NL",
+}
+
+
 def get_filter_counts() -> dict:
     """Get counts for all filter panels (category, city, company, posting_type, source)."""
     with get_db() as conn:
@@ -322,12 +335,16 @@ def get_filter_counts() -> dict:
         sources = conn.execute(
             "SELECT source, COUNT(*) as c FROM jobs WHERE is_hidden = 0 GROUP BY source ORDER BY c DESC"
         ).fetchall()
+        # Always include all known sources, even with 0 count
+        source_counts = {key: 0 for key in ALL_SOURCES}
+        for row in sources:
+            source_counts[row["source"]] = row["c"]
         return {
             "categories": {row["category"]: row["c"] for row in categories},
             "cities": {row["city"]: row["c"] for row in cities},
             "companies": {row["company"]: row["c"] for row in companies},
             "posting_types": {row["posting_type"]: row["c"] for row in posting_types},
-            "sources": {row["source"]: row["c"] for row in sources},
+            "sources": source_counts,
         }
 
 

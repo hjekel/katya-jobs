@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Katya's JobFinder</title>
     <link rel="icon" type="image/svg+xml" href="/static/favicon.svg">
-    <link rel="stylesheet" href="/static/style.css?v=4">
+    <link rel="stylesheet" href="/static/style.css?v=5">
 </head>
 <body>
     <header>
@@ -119,6 +119,7 @@
                     <select id="sort-select" onchange="loadJobs()">
                         <option value="newest" data-i18n="sort-newest">Newest first</option>
                         <option value="score" data-i18n="sort-score">Best match</option>
+                        <option value="oldest" data-i18n="sort-oldest">Oldest first</option>
                     </select>
                 </div>
             </div>
@@ -139,6 +140,7 @@
     </main>
 
     <!-- Score breakdown popup -->
+    <div id="score-popup-overlay" class="score-popup-overlay" style="display:none" onclick="closeScorePopup()"></div>
     <div id="score-popup" class="score-popup" style="display:none">
         <div class="score-popup-header">
             <span data-i18n="score-breakdown-title">Score Breakdown</span>
@@ -146,9 +148,8 @@
         </div>
         <div class="score-popup-body" id="score-popup-body"></div>
     </div>
-    <div id="score-popup-overlay" class="score-popup-overlay" style="display:none" onclick="closeScorePopup()"></div>
 
-    <script src="/static/theme.js?v=4"></script>
-    <script src="/static/app.js?v=4"></script>
+    <script src="/static/theme.js?v=5"></script>
+    <script src="/static/app.js?v=5"></script>
 </body>
 </html>
