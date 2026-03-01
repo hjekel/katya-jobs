@@ -502,10 +502,11 @@ def generate_fit_analysis(title: str, snippet: str = "", location: str = "") -> 
     title_lower = title.lower()
     snippet_lower = (snippet or "").lower()
     combined = f"{title_lower} {snippet_lower}"
+    loc_lower = (location or "").lower()
 
     bullets = []
-    tagline = ""
 
+    # Detect job categories (multiple can be true)
     is_finance = any(kw in combined for kw in [
         "accountant", "bookkeeper", "accounts payable", "accounts receivable",
         "financial", "finance", "accounting", "invoice", "billing",
@@ -513,74 +514,107 @@ def generate_fit_analysis(title: str, snippet: str = "", location: str = "") -> 
     ])
     is_admin = any(kw in combined for kw in [
         "admin", "administration", "back office", "office manager",
-        "data entry", "operations", "office assistant",
+        "data entry", "office assistant", "secretary", "receptionist",
     ])
     is_customer = any(kw in combined for kw in [
-        "customer service", "customer support", "receptionist", "front desk",
+        "customer service", "customer support", "helpdesk", "call cent",
+        "front desk",
+    ])
+    is_operations = any(kw in combined for kw in [
+        "operations", "logistics", "supply chain", "warehouse", "planning",
+        "coordinator",
     ])
     is_retail = any(kw in combined for kw in [
         "sales assistant", "retail", "shop assistant", "store",
     ])
+    has_ukrainian_russian = any(kw in combined for kw in [
+        "ukrainian", "russian", "oekra\u00efens", "russisch",
+    ])
+    has_english = any(kw in combined for kw in [
+        "english", "english-speaking", "international", "expat",
+    ])
+    is_hoofddorp = "hoofddorp" in loc_lower
+    is_haarlem = "haarlem" in loc_lower
 
+    # Build tagline based on best match
     if is_finance:
-        tagline = "Strong match \u2014 12 years of finance and accounting experience directly applicable."
-        bullets.append("12 years of professional bookkeeping, accounts payable/receivable, and financial reporting experience in Ukraine")
-        bullets.append("Nuffic-recognised Master\u2019s degree in Economics/Finance")
-        bullets.append("Hands-on experience with ledger management, reconciliations, and month-end closing")
-        if "payroll" in combined:
-            bullets.append("Familiar with payroll processing and employee compensation administration")
-        if "tax" in combined:
-            bullets.append("Experience with tax filing and compliance reporting")
-        if "invoice" in combined or "billing" in combined:
-            bullets.append("Extensive daily experience processing invoices, purchase orders, and billing cycles")
-        bullets.append("Strong analytical and numerical skills with high attention to detail")
-        bullets.append("Proficient in Excel, accounting software, and ERP systems")
-        if "english" in combined or "international" in combined:
-            bullets.append("Fluent in English \u2014 ready for international team environments")
+        tagline = "Strong match \u2014 12 years of accounting and finance experience."
     elif is_admin:
-        tagline = "Great fit \u2014 combines strong finance background with proven organisational skills."
-        bullets.append("12 years managing financial administration, filing, and documentation in professional settings")
-        bullets.append("Nuffic-recognised Master\u2019s degree demonstrating strong academic foundation")
-        bullets.append("Experienced in data entry, record keeping, and maintaining accurate databases")
-        bullets.append("Proven ability to handle multiple tasks and prioritise in fast-paced environments (ZARA retail)")
-        bullets.append("Advanced Excel and office software proficiency")
-        bullets.append("Fluent in English with additional Ukrainian and Russian language skills")
-        if "back office" in combined:
-            bullets.append("Background in back-office financial operations: invoicing, reporting, and compliance")
+        tagline = "Great fit \u2014 strong organisational skills and office experience."
     elif is_customer:
-        tagline = "Good match \u2014 recent customer-facing retail experience and multilingual communication skills."
-        bullets.append("Recent customer service experience at ZARA Netherlands (Hoofddorp), handling high-volume customer interactions")
-        bullets.append("Fluent in English, Ukrainian, and Russian \u2014 can serve diverse international customers")
-        bullets.append("Professional demeanor and problem-solving skills developed over 12 years in finance")
-        bullets.append("Comfortable with POS systems, inventory tools, and CRM software")
-        bullets.append("Proven ability to work in fast-paced, team-oriented environments")
-        bullets.append("Quick learner \u2014 adapted to Dutch retail environment as a recent newcomer")
+        tagline = "Good match \u2014 customer-facing experience at ZARA Netherlands."
+    elif is_operations:
+        tagline = "Relevant skills \u2014 operations planning and coordination experience."
     elif is_retail:
-        tagline = "Relevant experience \u2014 currently working in Dutch retail with strong transferable skills."
-        bullets.append("Currently working at ZARA Netherlands (Hoofddorp) in customer-facing retail role")
-        bullets.append("Hands-on experience with stock management, visual merchandising, and point-of-sale systems")
-        bullets.append("Fluent in English, Ukrainian, and Russian for serving international customers")
-        bullets.append("Strong numerical skills from 12 years of finance background \u2014 accurate cash handling")
-        bullets.append("Reliable team player who quickly adapted to a new country and work culture")
-        bullets.append("Nuffic-recognised Master\u2019s degree showing strong learning ability")
+        tagline = "Direct experience \u2014 currently working in Dutch retail."
     else:
-        tagline = "Transferable skills \u2014 finance background and recent Dutch work experience."
-        bullets.append("12 years of professional experience in finance and administration in Ukraine")
-        bullets.append("Recent work experience at ZARA Netherlands, demonstrating adaptability")
-        bullets.append("Nuffic-recognised Master\u2019s degree in Economics/Finance")
-        bullets.append("Fluent in English, Ukrainian, and Russian")
-        bullets.append("Strong analytical, numerical, and organisational skills")
-        bullets.append("Quick to learn new systems, processes, and environments")
+        tagline = "Transferable skills \u2014 finance background and Dutch work experience."
 
-    loc_lower = (location or "").lower()
-    if "haarlem" in loc_lower:
+    # Add category-specific bullets
+    if is_finance:
+        if "payroll" in combined:
+            bullets.append("12 years handling payroll, bookkeeping, and financial reporting in Ukraine")
+        elif "tax" in combined:
+            bullets.append("12 years of accounting experience including tax filing and compliance")
+        elif "invoice" in combined or "billing" in combined:
+            bullets.append("Extensive experience processing invoices, purchase orders, and billing cycles")
+        else:
+            bullets.append("12 years of accounts payable/receivable, reconciliations, and month-end closing")
+        bullets.append("Nuffic-recognised Master\u2019s degree in Economics/Finance")
+
+    if is_admin:
+        if "data entry" in combined:
+            bullets.append("Experienced in accurate data entry, record keeping, and database management")
+        elif "back office" in combined:
+            bullets.append("Background in back-office financial operations: filing, reporting, and compliance")
+        else:
+            bullets.append("12 years managing office administration, documentation, and filing systems")
+        if not is_finance:
+            bullets.append("Advanced Excel and office software proficiency")
+
+    if is_customer:
+        bullets.append("Recent customer service experience at ZARA (Hoofddorp), handling high-volume interactions")
+        if not is_finance and not is_admin:
+            bullets.append("Professional problem-solving skills developed over 12 years in finance")
+
+    if is_operations:
+        bullets.append("Experience in planning, coordination, and process management from finance roles")
+        if not is_finance and not is_admin:
+            bullets.append("Strong analytical and organisational skills from 12 years in professional settings")
+
+    if is_retail:
+        bullets.append("Currently working at ZARA Netherlands \u2014 hands-on Dutch retail experience")
+        if not is_customer:
+            bullets.append("Strong numerical skills from finance background \u2014 accurate cash handling")
+
+    # Language-specific bullets
+    if has_ukrainian_russian:
+        bullets.append("Native Ukrainian and Russian speaker \u2014 valuable language asset for this role")
+    if has_english:
+        bullets.append("Improving English proficiency with experience in international work environments")
+
+    # Location-specific bullets
+    if is_haarlem:
         bullets.append("Lives in Haarlem \u2014 no commute needed")
-    elif "hoofddorp" in loc_lower:
-        bullets.append("Already commutes to Hoofddorp for ZARA \u2014 familiar with the area")
+    elif is_hoofddorp:
+        bullets.append("Already commutes to Hoofddorp for ZARA \u2014 knows the area well")
     elif any(c in loc_lower for c in ["amsterdam", "schiphol", "amstelveen"]):
         bullets.append("Easy public transport commute from Haarlem")
 
-    return {"tagline": tagline, "bullets": bullets[:7]}
+    # If we still have fewer than 3 bullets, add general ones
+    general_pool = [
+        "Nuffic-recognised Master\u2019s degree in Economics/Finance",
+        "Quick learner who adapted to a new country and work culture",
+        "Fluent in English, Ukrainian, and Russian",
+        "Reliable and motivated \u2014 proven adaptability at ZARA Netherlands",
+    ]
+    for g in general_pool:
+        if len(bullets) >= 4:
+            break
+        if g not in bullets:
+            bullets.append(g)
+
+    return {"tagline": tagline, "bullets": bullets[:4]}
 
 
 # --------------------------------------------------------------------------

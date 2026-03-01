@@ -97,7 +97,7 @@ h1 {
 }
 
 .nav-link:hover { background: rgba(255,255,255,0.15); color: #fff; }
-.nav-link.active { background: var(--accent); color: var(--text); font-weight: 600; }
+.nav-link.active { background: var(--accent); color: #1a1a2e; font-weight: 600; }
 
 .header-actions {
     display: flex;
@@ -107,7 +107,7 @@ h1 {
 
 #btn-scrape {
     background: var(--accent);
-    color: var(--text);
+    color: #1a1a2e;
     border: none;
     padding: 8px 16px;
     border-radius: var(--radius-sm);
@@ -136,7 +136,7 @@ h1 {
 
 .badge-new {
     background: var(--accent);
-    color: var(--text);
+    color: #1a1a2e;
     padding: 2px 8px;
     border-radius: 10px;
     font-size: 0.75rem;
@@ -1026,7 +1026,7 @@ body, header, .job-card, .filter-panel, .panel-header, .modal,
 }
 
 .lang-btn.active {
-    color: var(--text);
+    color: #1a1a2e;
     background: var(--accent);
 }
 
@@ -1615,6 +1615,14 @@ body.ukraine-mode .kanban-count {
     color: var(--text-secondary);
     padding: 24px;
     font-size: 0.9rem;
+}
+
+/* ===== Footer ===== */
+.site-footer {
+    text-align: center;
+    padding: 24px 16px 16px;
+    font-size: 0.75rem;
+    color: var(--text-secondary);
 }
 
 /* ===== Responsive: Tablet ===== */

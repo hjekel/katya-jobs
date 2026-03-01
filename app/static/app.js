@@ -73,9 +73,23 @@ function renderFilterLists() {
     // Category list
     renderList("list-category", filterData.categories || {}, "category");
 
-    // Location list
-    const cities = Object.entries(filterData.cities || {}).filter(([c]) => c);
-    renderListFromEntries("list-location", cities, "city");
+    // Location list — Haarlem always first with separator
+    const allCities = Object.entries(filterData.cities || {}).filter(([c]) => c);
+    const haarlem = allCities.filter(([c]) => c === "Haarlem");
+    const rest = allCities.filter(([c]) => c !== "Haarlem");
+    const container = document.getElementById("list-location");
+    container.innerHTML = "";
+    for (const [label, count] of haarlem) {
+        container.appendChild(createFilterRow(label, count, "city", label));
+    }
+    if (haarlem.length > 0 && rest.length > 0) {
+        const divider = document.createElement("li");
+        divider.className = "filter-list-divider";
+        container.appendChild(divider);
+    }
+    for (const [label, count] of rest) {
+        container.appendChild(createFilterRow(label, count, "city", label));
+    }
 
     // Source list (job boards)
     renderList("list-source", filterData.sources || {}, "source");
