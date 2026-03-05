@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Katya's JobFinder</title>
     <link rel="icon" type="image/svg+xml" href="/static/favicon.svg">
-    <link rel="stylesheet" href="/static/style.css?v=6">
+    <link rel="stylesheet" href="/static/style.css?v=8">
 </head>
 <body>
     <header>
@@ -33,6 +33,7 @@
             <div id="stats-bar">
                 <span id="stat-total">0 jobs</span>
                 <span id="stat-new" class="badge-new" style="display:none">0 new</span>
+                <span id="stat-english" class="badge-english" style="display:none">0 English-friendly</span>
             </div>
         </div>
     </header>
@@ -106,11 +107,13 @@
         <div class="controls-row">
             <div class="results-count" id="results-count">Showing 0 jobs</div>
             <div class="controls-right">
-                <label class="toggle-switch-label">
-                    <input type="checkbox" id="toggle-dutch" checked onchange="onDutchToggle()">
-                    <span class="toggle-switch-slider"></span>
-                    <span data-i18n="toggle-dutch">Hide jobs requiring Dutch</span>
-                </label>
+                <div class="dutch-filter-control">
+                    <select id="dutch-filter" onchange="onDutchFilterChange()">
+                        <option value="all" data-i18n="dutch-all">Show All</option>
+                        <option value="english_only" data-i18n="dutch-english-only">English Only</option>
+                        <option value="hide_required" selected data-i18n="dutch-hide-required">Hide Dutch Required</option>
+                    </select>
+                </div>
                 <label class="toggle-new">
                     <input type="checkbox" id="toggle-new" onchange="loadJobs()"> <span data-i18n="toggle-new">Show only new</span>
                 </label>
@@ -139,7 +142,7 @@
         </div>
     </main>
 
-    <footer class="site-footer">v1.2 — Katya's JobFinder — 1 March 2026</footer>
+    <footer class="site-footer">v1.3 — Katya's JobFinder — 5 March 2026</footer>
 
     <!-- Score breakdown popup -->
     <div id="score-popup-overlay" class="score-popup-overlay" style="display:none" onclick="closeScorePopup()"></div>
@@ -151,7 +154,7 @@
         <div class="score-popup-body" id="score-popup-body"></div>
     </div>
 
-    <script src="/static/theme.js?v=6"></script>
-    <script src="/static/app.js?v=6"></script>
+    <script src="/static/theme.js?v=8"></script>
+    <script src="/static/app.js?v=8"></script>
 </body>
 </html>

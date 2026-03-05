@@ -74,19 +74,19 @@ async def api_jobs(
     sort: str = Query("newest"),
     limit: int = Query(200, le=500),
     offset: int = Query(0, ge=0),
-    exclude_dutch: bool = Query(False),
+    dutch_filter: str = Query("all"),
 ):
     jobs = get_jobs(
         source=source, search=search, only_new=only_new,
         min_salary=min_salary, category=category, city=city,
         posting_type=posting_type, company=company, sort=sort,
-        limit=limit, offset=offset, exclude_dutch=exclude_dutch,
+        limit=limit, offset=offset, dutch_filter=dutch_filter,
     )
     total = get_job_count(
         source=source, search=search, only_new=only_new,
         min_salary=min_salary, category=category, city=city,
         posting_type=posting_type, company=company,
-        exclude_dutch=exclude_dutch,
+        dutch_filter=dutch_filter,
     )
     # Enrich each job with posting age and score breakdown
     for job in jobs:
@@ -98,6 +98,7 @@ async def api_jobs(
             job.get("company", ""),
             job.get("location", ""),
             job.get("snippet", ""),
+            dutch_level=job.get("dutch_level", ""),
         )
     return {"jobs": jobs, "total": total}
 
@@ -127,10 +128,7 @@ async def api_scrape():
         global _last_scrape, _scraping
         _scraping = True
         try:
-            # Include custom keywords in the scrape
-            keywords = get_custom_keywords()
-            extra = [kw["keyword"] for kw in keywords] if keywords else []
-            results = await scrape_all(extra_queries=extra)
+            results = await scrape_all()
             _last_scrape = datetime.now(timezone.utc).isoformat()
             return results
         finally:

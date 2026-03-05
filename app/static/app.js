@@ -18,13 +18,13 @@ const activeFilters = {
 let filterData = null;
 const isMobile = () => window.innerWidth <= 768;
 
-// Exclude Dutch toggle — default ON, stored in cookie
-let excludeDutch = getCookie('excludeDutch') !== 'false';
+// Dutch filter — default 'hide_required', stored in cookie
+let dutchFilter = getCookie('dutchFilter') || 'hide_required';
 
 document.addEventListener("DOMContentLoaded", () => {
-    // Restore exclude Dutch toggle from cookie
-    const toggle = document.getElementById("toggle-dutch");
-    if (toggle) toggle.checked = excludeDutch;
+    // Restore Dutch filter from cookie
+    const sel = document.getElementById("dutch-filter");
+    if (sel) sel.value = dutchFilter;
 
     loadStats();
     loadFilters();
@@ -52,11 +52,11 @@ async function api(path, opts = {}) {
     return resp.json();
 }
 
-// ——— Exclude Dutch toggle ———
+// ——— Dutch filter ———
 
-function onDutchToggle() {
-    excludeDutch = document.getElementById("toggle-dutch").checked;
-    setCookie('excludeDutch', excludeDutch);
+function onDutchFilterChange() {
+    dutchFilter = document.getElementById("dutch-filter").value;
+    setCookie('dutchFilter', dutchFilter);
     loadJobs();
 }
 
@@ -202,7 +202,7 @@ async function loadJobs(append = false) {
     const params = new URLSearchParams({ limit: PAGE_SIZE, offset: currentOffset, sort });
     if (search) params.set("search", search);
     if (onlyNew) params.set("only_new", "true");
-    if (excludeDutch) params.set("exclude_dutch", "true");
+    if (dutchFilter && dutchFilter !== "all") params.set("dutch_filter", dutchFilter);
     if (activeFilters.category) params.set("category", activeFilters.category);
     if (activeFilters.city) params.set("city", activeFilters.city);
     if (activeFilters.source) params.set("source", activeFilters.source);
@@ -336,6 +336,26 @@ function createJobCard(job) {
         categoryBadge = `<span class="badge-category">${escHtml(job.category)}</span>`;
     }
 
+    // Dutch level badge
+    let dutchBadge = "";
+    if (job.dutch_level === "english_ok") {
+        dutchBadge = `<span class="badge-dutch-ok">${escHtml(t('badge-english-ok'))}</span>`;
+    } else if (job.dutch_level === "dutch_preferred") {
+        dutchBadge = `<span class="badge-dutch-preferred">${escHtml(t('badge-dutch-preferred'))}</span>`;
+    } else if (job.dutch_level === "dutch_required") {
+        dutchBadge = `<span class="badge-dutch-required">${escHtml(t('badge-dutch-required'))}</span>`;
+    }
+
+    // Work model badge
+    let workModelBadge = "";
+    if (job.work_model === "remote") {
+        workModelBadge = `<span class="badge-remote">${escHtml(t('badge-remote'))}</span>`;
+    } else if (job.work_model === "hybrid") {
+        workModelBadge = `<span class="badge-hybrid">${escHtml(t('badge-hybrid'))}</span>`;
+    } else if (job.work_model === "onsite") {
+        workModelBadge = `<span class="badge-onsite">${escHtml(t('badge-onsite'))}</span>`;
+    }
+
     card.innerHTML = `
         <div class="job-card-header">
             <a class="job-title" href="${escHtml(job.url)}" target="_blank" rel="noopener"
@@ -350,13 +370,16 @@ function createJobCard(job) {
             ${ageHtml}
             ${typeBadge}
             ${categoryBadge}
+            ${dutchBadge}
+            ${workModelBadge}
         </div>
         ${salaryHtml}
         ${commuteHtml}
         ${job.snippet ? `<p class="job-snippet">${escHtml(job.snippet)}</p>` : ""}
         <div class="job-footer">
             <div class="job-footer-left">
-                <span class="job-source ${sourceClass}">${escHtml(t('posted-on', { source: job.source }))}</span>
+                <a class="job-source ${sourceClass}" href="${escHtml(job.url)}" target="_blank" rel="noopener"
+                   onclick="event.stopPropagation()">${escHtml(t('posted-on', { source: job.source }))}</a>
             </div>
             <div class="job-actions">
                 <button class="btn-save" id="save-${job.id}"
@@ -532,7 +555,7 @@ async function startScrape() {
     btn.disabled = true;
     btn.classList.add("spinning");
     statusBar.style.display = "flex";
-    statusText.textContent = t('scanning-text');
+    statusText.textContent = t('scanning-text-8');
 
     try {
         const data = await api("/api/scrape", { method: "POST" });
@@ -578,6 +601,11 @@ async function loadStats() {
         newBadge.style.display = "inline";
     } else {
         newBadge.style.display = "none";
+    }
+    const engBadge = document.getElementById("stat-english");
+    if (engBadge && data.english_friendly !== undefined) {
+        engBadge.textContent = t('english-friendly-count', { n: data.english_friendly, total: data.total });
+        engBadge.style.display = data.english_friendly > 0 ? "inline" : "none";
     }
 }
 

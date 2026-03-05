@@ -100,6 +100,11 @@ DUTCH_WORDS = {
     "jij bent", "jij hebt", "je beschikt over",
     "sociale", "economie", "maatschappij", "impact",
     "ter versterking", "ons team", "per direct",
+    # Additional Dutch detection words
+    "vereisten", "verantwoordelijkheden", "vaardigheden", "beheersing",
+    "nederlands", "beheersen", "taalvaardigheid", "moedertaal", "vloeiend",
+    "eis", "verplicht", "gewenst", "werkomgeving", "solliciteren",
+    "motivatiebrief",
 }
 
 DUTCH_WORD_THRESHOLD_TITLE = 2
@@ -196,6 +201,28 @@ USER_AGENT = (
     "AppleWebKit/537.36 (KHTML, like Gecko) "
     "Chrome/131.0.0.0 Safari/537.36"
 )
+USER_AGENTS = [
+    "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36",
+    "Mozilla/5.0 (Macintosh; Intel Mac OS X 14_0) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36",
+    "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:132.0) Gecko/20100101 Firefox/132.0",
+    "Mozilla/5.0 (Macintosh; Intel Mac OS X 14_0) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.0 Safari/605.1.15",
+]
 SCRAPE_INTERVAL_HOURS = 6
+
+# Remote job board config
+REMOTE_RELEVANT_TAGS = {
+    "finance", "accounting", "admin", "customer service", "data entry",
+    "bookkeeping", "accounts", "payroll", "billing", "invoice",
+    "office", "back office", "operations", "support",
+}
+
+# Dutch level "preferred" signals (softer than exclusion)
+DUTCH_PREFERRED_SIGNALS = [
+    "dutch is a plus", "dutch preferred", "dutch is preferred",
+    "dutch would be a plus", "dutch is an advantage",
+    "knowledge of dutch", "basic dutch", "some dutch",
+    "dutch is appreciated", "dutch is a bonus",
+    "nederlands is een pré", "nederlands is een pre",
+]
 
 DATABASE_PATH = "jobs.db"

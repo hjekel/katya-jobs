@@ -7,7 +7,7 @@ from datetime import datetime, timezone
 from typing import Optional
 
 from app.config import DATABASE_PATH
-from app.scorer import classify_category, extract_city, detect_posting_type
+from app.scorer import classify_category, extract_city, detect_posting_type, detect_dutch_level, detect_work_model
 
 
 def get_db_path() -> str:
@@ -102,6 +102,27 @@ def init_db():
         conn.execute("CREATE INDEX IF NOT EXISTS idx_jobs_city ON jobs(city)")
         conn.execute("CREATE INDEX IF NOT EXISTS idx_jobs_posting_type ON jobs(posting_type)")
 
+        # Migration: add dutch_level column
+        try:
+            conn.execute("SELECT dutch_level FROM jobs LIMIT 1")
+        except sqlite3.OperationalError:
+            conn.execute("ALTER TABLE jobs ADD COLUMN dutch_level TEXT DEFAULT 'english_ok'")
+            # Backfill existing jobs
+            rows = conn.execute("SELECT id, title, snippet FROM jobs").fetchall()
+            for row in rows:
+                dl = detect_dutch_level(row["title"] or "", row["snippet"] or "")
+                conn.execute("UPDATE jobs SET dutch_level = ? WHERE id = ?", (dl, row["id"]))
+
+        # Migration: add work_model column
+        try:
+            conn.execute("SELECT work_model FROM jobs LIMIT 1")
+        except sqlite3.OperationalError:
+            conn.execute("ALTER TABLE jobs ADD COLUMN work_model TEXT DEFAULT ''")
+            rows = conn.execute("SELECT id, title, snippet, location, source FROM jobs").fetchall()
+            for row in rows:
+                wm = detect_work_model(row["title"] or "", row["snippet"] or "", row["location"] or "", row["source"] or "")
+                conn.execute("UPDATE jobs SET work_model = ? WHERE id = ?", (wm, row["id"]))
+
         # Feedback table
         conn.execute("""
             CREATE TABLE IF NOT EXISTS feedback (
@@ -149,6 +170,8 @@ def upsert_job(
     category: str = "",
     city: str = "",
     posting_type: str = "direct",
+    dutch_level: str = "english_ok",
+    work_model: str = "",
 ) -> bool:
     """Insert a job if it doesn't exist. Returns True if newly inserted."""
     now = datetime.now(timezone.utc).isoformat()
@@ -158,29 +181,16 @@ def upsert_job(
                 """INSERT INTO jobs
                    (external_id, title, company, location, snippet, url, source,
                     score, salary_min, salary_max, salary_raw, date_posted, date_scraped,
-                    category, city, posting_type)
-                   VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+                    category, city, posting_type, dutch_level, work_model)
+                   VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
                 (external_id, title, company, location, snippet, url, source,
                  score, salary_min, salary_max, salary_raw, date_posted, now,
-                 category, city, posting_type),
+                 category, city, posting_type, dutch_level, work_model),
             )
             return True
         except sqlite3.IntegrityError:
             return False
 
-
-def _add_dutch_exclusion(conditions: list, params: list):
-    """Add SQL conditions to exclude jobs with Dutch-language indicators."""
-    dutch_terms = [
-        "Nederlands", "Dutch required", "Nederlandse taal",
-        "NL spreken", "beheersing van de Nederlandse taal",
-        "Dutch language", "vloeiend Nederlands", "moedertaal Nederlands",
-    ]
-    dutch_or_parts = []
-    for term in dutch_terms:
-        dutch_or_parts.append("(COALESCE(title,'') || ' ' || COALESCE(snippet,'') LIKE ?)")
-        params.append(f"%{term}%")
-    conditions.append(f"NOT ({' OR '.join(dutch_or_parts)})")
 
 
 def get_jobs(
@@ -195,7 +205,7 @@ def get_jobs(
     sort: str = "newest",
     limit: int = 200,
     offset: int = 0,
-    exclude_dutch: bool = False,
+    dutch_filter: str = "all",
 ) -> list[dict]:
     conditions = ["is_hidden = 0"]
     params: list = []
@@ -224,8 +234,10 @@ def get_jobs(
     if company:
         conditions.append("company = ?")
         params.append(company)
-    if exclude_dutch:
-        _add_dutch_exclusion(conditions, params)
+    if dutch_filter == "english_only":
+        conditions.append("dutch_level = 'english_ok'")
+    elif dutch_filter == "hide_required":
+        conditions.append("dutch_level != 'dutch_required'")
 
     where = " AND ".join(conditions)
 
@@ -255,7 +267,7 @@ def get_job_count(
     city: Optional[str] = None,
     posting_type: Optional[str] = None,
     company: Optional[str] = None,
-    exclude_dutch: bool = False,
+    dutch_filter: str = "all",
 ) -> int:
     conditions = ["is_hidden = 0"]
     params: list = []
@@ -283,8 +295,10 @@ def get_job_count(
     if company:
         conditions.append("company = ?")
         params.append(company)
-    if exclude_dutch:
-        _add_dutch_exclusion(conditions, params)
+    if dutch_filter == "english_only":
+        conditions.append("dutch_level = 'english_ok'")
+    elif dutch_filter == "hide_required":
+        conditions.append("dutch_level != 'dutch_required'")
     where = " AND ".join(conditions)
     with get_db() as conn:
         row = conn.execute(f"SELECT COUNT(*) as cnt FROM jobs WHERE {where}", params).fetchone()
@@ -314,6 +328,8 @@ ALL_SOURCES = {
     "undutchables": "Undutchables",
     "adams": "Adams Recruitment",
     "welcometonl": "Welcome to NL",
+    "remoteok": "Remote OK",
+    "weworkremotely": "We Work Remotely",
 }
 
 
@@ -355,10 +371,14 @@ def get_stats() -> dict:
         sources = conn.execute(
             "SELECT source, COUNT(*) as c FROM jobs WHERE is_hidden = 0 GROUP BY source"
         ).fetchall()
+        english_friendly = conn.execute(
+            "SELECT COUNT(*) as c FROM jobs WHERE is_hidden = 0 AND dutch_level = 'english_ok'"
+        ).fetchone()["c"]
         return {
             "total": total,
             "new": new,
             "by_source": {row["source"]: row["c"] for row in sources},
+            "english_friendly": english_friendly,
         }
 
 

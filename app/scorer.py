@@ -17,6 +17,7 @@ from app.config import (
     DUTCH_WORDS,
     DUTCH_WORD_THRESHOLD_TITLE,
     DUTCH_WORD_THRESHOLD_BODY,
+    DUTCH_PREFERRED_SIGNALS,
     SENIORITY_PENALTY,
     SENIORITY_BONUS,
     HOME_ADDRESS_ENCODED,
@@ -103,6 +104,63 @@ def is_dutch_text(title: str, description: str = "") -> bool:
         if title_hits >= 1 and body_hits >= 3:
             return True
     return False
+
+
+def detect_dutch_level(title: str, description: str = "") -> str:
+    """Detect Dutch language requirement level.
+    Returns 'dutch_required', 'dutch_preferred', or 'english_ok'."""
+    title_lower = title.lower()
+    desc_lower = (description or "").lower()
+    combined = f"{title_lower} {desc_lower}"
+
+    # Check hard exclusion keywords → dutch_required
+    for kw in EXCLUDE_KEYWORDS:
+        if "dutch" in kw or "nederland" in kw or "vloeiend" in kw or "taaleis" in kw or "beheersing" in kw:
+            if kw in combined:
+                return "dutch_required"
+
+    # Check if title is mostly Dutch
+    title_hits = _count_dutch_words(title)
+    if title_hits >= DUTCH_WORD_THRESHOLD_TITLE:
+        return "dutch_required"
+
+    # Count Dutch words in description
+    body_hits = _count_dutch_words(description) if description else 0
+
+    # Calculate Dutch word percentage in description
+    if description:
+        words = set(_WORD_SPLIT.split(desc_lower))
+        total_words = len([w for w in words if len(w) > 2])
+        dutch_pct = (body_hits / max(total_words, 1)) * 100
+    else:
+        dutch_pct = 0
+
+    # >30% Dutch words → dutch_required
+    if dutch_pct > 30:
+        return "dutch_required"
+
+    # Strong Dutch body presence
+    if body_hits >= DUTCH_WORD_THRESHOLD_BODY:
+        return "dutch_required"
+
+    # Mixed signal: some Dutch in title + body
+    if title_hits >= 1 and body_hits >= 3:
+        return "dutch_required"
+
+    # Check preferred signals
+    for signal in DUTCH_PREFERRED_SIGNALS:
+        if signal in combined:
+            return "dutch_preferred"
+
+    # 10-30% Dutch words → dutch_preferred
+    if dutch_pct > 10:
+        return "dutch_preferred"
+
+    # Some Dutch presence but not dominant
+    if body_hits >= 3:
+        return "dutch_preferred"
+
+    return "english_ok"
 
 
 def should_exclude(title: str, description: str = "") -> bool:
@@ -239,6 +297,31 @@ def detect_posting_type(company: str, source: str) -> str:
 
 
 # --------------------------------------------------------------------------
+# Work model detection
+# --------------------------------------------------------------------------
+
+def detect_work_model(title: str, description: str = "", location: str = "", source: str = "") -> str:
+    """Detect work model: 'remote', 'hybrid', or 'onsite'."""
+    combined = f"{title} {description} {location}".lower()
+
+    # Remote sources are always remote
+    if source in ("remoteok", "weworkremotely"):
+        return "remote"
+
+    remote_signals = ["remote", "work from home", "wfh", "fully remote", "100% remote",
+                      "anywhere", "work from anywhere"]
+    if any(s in combined for s in remote_signals):
+        return "remote"
+
+    hybrid_signals = ["hybrid", "flexible working", "2-3 days office", "3 days office",
+                      "2 days office", "partially remote", "partly remote"]
+    if any(s in combined for s in hybrid_signals):
+        return "hybrid"
+
+    return "onsite"
+
+
+# --------------------------------------------------------------------------
 # Posting age
 # --------------------------------------------------------------------------
 
@@ -323,7 +406,7 @@ def compute_posting_age(date_posted: Optional[str], date_scraped: Optional[str] 
 # Scoring
 # --------------------------------------------------------------------------
 
-def compute_score(title: str, company: str = "", location: str = "", description: str = "") -> int:
+def compute_score(title: str, company: str = "", location: str = "", description: str = "", dutch_level: str = "") -> int:
     title_lower = title.lower()
     desc_lower = description.lower()
     combined = f"{title_lower} {desc_lower}"
@@ -382,10 +465,17 @@ def compute_score(title: str, company: str = "", location: str = "", description
     if "zara" in combined or "inditex" in combined:
         score += 5
 
+    # Dutch level scoring
+    dl = dutch_level or detect_dutch_level(title, description)
+    if dl == "english_ok":
+        score += 20
+    elif dl == "dutch_required":
+        score -= 50
+
     return max(0, min(score, 150))
 
 
-def compute_score_breakdown(title: str, company: str = "", location: str = "", description: str = "") -> dict:
+def compute_score_breakdown(title: str, company: str = "", location: str = "", description: str = "", dutch_level: str = "") -> dict:
     """Compute score with detailed per-component breakdown."""
     title_lower = (title or "").lower()
     desc_lower = (description or "").lower()
@@ -463,6 +553,15 @@ def compute_score_breakdown(title: str, company: str = "", location: str = "", d
     if "zara" in combined or "inditex" in combined:
         components.append({"label": "ZARA/Inditex", "points": 5})
         total += 5
+
+    # Dutch level scoring
+    dl = dutch_level or detect_dutch_level(title or "", description or "")
+    if dl == "english_ok":
+        components.append({"label": "No Dutch required", "points": 20})
+        total += 20
+    elif dl == "dutch_required":
+        components.append({"label": "Dutch language required", "points": -50})
+        total -= 50
 
     total = max(0, min(total, 150))
     return {"components": components, "total": total}

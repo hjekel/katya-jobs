@@ -586,6 +586,84 @@ main { max-width: 1200px; margin: 0 auto; padding: 16px; }
     color: var(--primary);
 }
 
+/* Dutch level badges */
+.badge-dutch-ok {
+    display: inline-flex;
+    align-items: center;
+    font-size: 0.72rem;
+    font-weight: 600;
+    padding: 2px 8px;
+    border-radius: 10px;
+    background: #d4edda;
+    color: #155724;
+}
+
+.badge-dutch-preferred {
+    display: inline-flex;
+    align-items: center;
+    font-size: 0.72rem;
+    font-weight: 600;
+    padding: 2px 8px;
+    border-radius: 10px;
+    background: #fff3cd;
+    color: #856404;
+}
+
+.badge-dutch-required {
+    display: inline-flex;
+    align-items: center;
+    font-size: 0.72rem;
+    font-weight: 600;
+    padding: 2px 8px;
+    border-radius: 10px;
+    background: #f8d7da;
+    color: #721c24;
+}
+
+/* Work model badges */
+.badge-remote {
+    display: inline-flex;
+    align-items: center;
+    font-size: 0.72rem;
+    font-weight: 600;
+    padding: 2px 8px;
+    border-radius: 10px;
+    background: #d1ecf1;
+    color: #0c5460;
+}
+
+.badge-hybrid {
+    display: inline-flex;
+    align-items: center;
+    font-size: 0.72rem;
+    font-weight: 600;
+    padding: 2px 8px;
+    border-radius: 10px;
+    background: #e8daef;
+    color: #6c3483;
+}
+
+.badge-onsite {
+    display: inline-flex;
+    align-items: center;
+    font-size: 0.72rem;
+    font-weight: 600;
+    padding: 2px 8px;
+    border-radius: 10px;
+    background: var(--grey-light);
+    color: var(--grey);
+}
+
+/* English-friendly stats badge */
+.badge-english {
+    background: #d4edda;
+    color: #155724;
+    padding: 2px 8px;
+    border-radius: 10px;
+    font-size: 0.75rem;
+    font-weight: 600;
+}
+
 .job-salary {
     font-size: 0.83rem;
     font-weight: 600;
@@ -648,6 +726,12 @@ main { max-width: 1200px; margin: 0 auto; padding: 16px; }
     border-radius: 4px;
     background: var(--source-bg);
     color: var(--text-secondary);
+    text-decoration: none;
+    cursor: pointer;
+}
+.job-source:hover {
+    opacity: 0.85;
+    filter: brightness(0.95);
 }
 
 .source-indeed { background: #e8eaf6; color: #283593; }
@@ -656,6 +740,8 @@ main { max-width: 1200px; margin: 0 auto; padding: 16px; }
 .source-linkedin { background: #e3f2fd; color: #0277bd; }
 .source-adams { background: #fce4ec; color: #880e4f; }
 .source-welcometonl { background: #e0f2f1; color: #00695c; }
+.source-remoteok { background: #e8f5e9; color: #1b5e20; }
+.source-weworkremotely { background: #fff8e1; color: #f57f17; }
 
 .job-actions { display: flex; gap: 6px; }
 
@@ -1091,6 +1177,22 @@ body, header, .job-card, .filter-panel, .panel-header, .modal,
 [data-theme="dark"] .source-linkedin { background: #0e1a30; color: #60a0e0; }
 [data-theme="dark"] .source-adams { background: #2e1020; color: #c06080; }
 [data-theme="dark"] .source-welcometonl { background: #0e2a2a; color: #50b0a0; }
+[data-theme="dark"] .source-remoteok { background: #1b2e1b; color: #60c060; }
+[data-theme="dark"] .source-weworkremotely { background: #2e2a10; color: #d0b040; }
+
+[data-theme="dark"] .badge-dutch-ok { background: #1b3a1b; color: #6bcf6b; }
+[data-theme="dark"] .badge-dutch-preferred { background: #3a2e1b; color: #f0b040; }
+[data-theme="dark"] .badge-dutch-required { background: #3a1b1b; color: #f06060; }
+[data-theme="dark"] .badge-remote { background: #0e2a30; color: #50b0c0; }
+[data-theme="dark"] .badge-hybrid { background: #2a1e3a; color: #b080d0; }
+[data-theme="dark"] .badge-onsite { background: #2a2a3e; color: #9e9e9e; }
+[data-theme="dark"] .badge-english { background: #1b3a1b; color: #6bcf6b; }
+
+[data-theme="dark"] .dutch-filter-control select {
+    background: var(--card-bg);
+    color: var(--text);
+    border-color: var(--border);
+}
 
 [data-theme="dark"] .job-salary.no-salary { color: #666; }
 [data-theme="dark"] .kanban-card-date { color: #707080; }
@@ -1304,50 +1406,22 @@ body.ukraine-mode .kanban-count {
     color: var(--primary);
 }
 
-/* ===== Toggle Switch (Exclude Dutch) ===== */
-.toggle-switch-label {
+/* ===== Dutch Filter Dropdown ===== */
+.dutch-filter-control {
     display: flex;
     align-items: center;
-    gap: 8px;
+    gap: 6px;
     font-size: 0.85rem;
     color: var(--text-secondary);
-    cursor: pointer;
-    white-space: nowrap;
 }
 
-.toggle-switch-label input[type="checkbox"] {
-    display: none;
-}
-
-.toggle-switch-slider {
-    position: relative;
-    width: 36px;
-    height: 20px;
-    background: var(--grey-light);
-    border-radius: 10px;
-    transition: background 0.2s;
-    flex-shrink: 0;
-}
-
-.toggle-switch-slider::after {
-    content: '';
-    position: absolute;
-    top: 2px;
-    left: 2px;
-    width: 16px;
-    height: 16px;
-    background: #fff;
-    border-radius: 50%;
-    transition: transform 0.2s;
-    box-shadow: 0 1px 3px rgba(0,0,0,0.2);
-}
-
-.toggle-switch-label input:checked + .toggle-switch-slider {
-    background: var(--green);
-}
-
-.toggle-switch-label input:checked + .toggle-switch-slider::after {
-    transform: translateX(16px);
+.dutch-filter-control select {
+    padding: 4px 8px;
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    font-size: 0.85rem;
+    background: var(--card-bg);
+    color: var(--text);
 }
 
 /* ===== Panel Input Row (Add job board) ===== */
